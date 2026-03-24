@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liga Commander</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <script src="app.js" defer></script>
+</head>
+<body>
+
+    <div class="bg-auras">
+        <div class="aura aura-1"></div>
+        <div class="aura aura-2"></div>
+        <div class="aura aura-3"></div>
+    </div>
+
+    <h1>✨ LIGA COMMANDER ✨</h1>
+
+    <div class="card">
+        <h2>🏆 CLASIFICACIÓN</h2>
+        <select id="modo-clasificacion" onchange="renderizarClasificacion()">
+            <option value="general">🌟 Clasificación General</option>
+        </select>
+        <table id="tabla-clasificacion">
+            <thead>
+                <tr>
+                    <th>Pos</th>
+                    <th>Jugador</th>
+                    <th>Puntos</th>
+                    <th>Partidas</th>
+                </tr>
+            </thead>
+            <tbody id="body-clasificacion">
+            </tbody>
+        </table>
+    </div>
+
+    <details class="card" id="seccion-generador" open>
+        <summary>🎲 GENERADOR DE JORNADAS</summary>
+        <div class="details-content">
+            <p class="subtitle">Marca los jugadores presentes. El generador optimizará las mesas evitando que alguien juegue solo.</p>
+            <div id="jugadores-presentes" class="checkbox-container"></div>
+            
+            <div style="display: flex; gap: 15px; margin-top: 25px; flex-wrap: wrap;">
+                <button class="btn-random" onclick="generarMesas()">🔮 Generar Aleatorio</button>
+                <button class="btn-manual" onclick="crearMesaManual()">✍️ Añadir Manual</button>
+            </div>
+            
+            <div id="mesas-generadas"></div>
+        </div>
+    </details>
+
+    <details class="card">
+        <summary>👥 GESTIONAR JUGADORES</summary>
+        <div class="details-content">
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <input type="text" id="nuevo-jugador" placeholder="Introduce el nombre..." onkeypress="if(event.key === 'Enter') agregarJugador()">
+                <button class="btn-add" onclick="agregarJugador()">+ Añadir</button>
+            </div>
+            <ul id="lista-jugadores"></ul>
+        </div>
+    </details>
+
+    <details class="card">
+        <summary>📜 REGISTRO DE BATALLAS</summary>
+        <div class="details-content">
+            <p class="subtitle">Historial organizado por jornadas. Puedes anular una partida si hubo un error.</p>
+            <div id="lista-historial"></div>
+        </div>
+    </details>
+
+    <details class="card">
+        <summary>💾 SISTEMA DE DATOS</summary>
+        <div class="details-content">
+            <p class="subtitle">Exporta un archivo de respaldo para no perder el progreso de tu liga.</p>
+            
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <button class="btn-export" onclick="exportarDatos()">📥 Descargar Copia</button>
+                <button class="btn-import" onclick="document.getElementById('file-import').click()">📤 Cargar Copia</button>
+            </div>
+            <input type="file" id="file-import" accept=".json" style="display: none;" onchange="importarDatos(event)">
+
+            <hr>
+            <button class="btn-danger" onclick="reiniciarApp()">⚠️ Borrar Base de Datos</button>
+        </div>
+    </details>
+
+    <div class="footer-credits">
+        Made by Alabaster <a href="musica.html" target="_blank" class="easter-egg" title="Mi rincón secreto...">🧙‍♂️</a>
+    </div>
+
+</body>
+</html>
