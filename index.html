@@ -18,29 +18,48 @@
 
     <h1>✨ LIGA COMMANDER ✨</h1>
 
-    <div class="card">
-        <h2>🏆 CLASIFICACIÓN</h2>
+    <div class="card" id="tarjeta-clasificacion">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0;">🏆 CLASIFICACIÓN</h2>
+            <button id="btn-fullscreen" class="btn-header" onclick="toggleFullscreen()">🔲 Pantalla Completa</button>
+        </div>
+        
         <select id="modo-clasificacion" onchange="renderizarClasificacion()">
             <option value="general">🌟 Clasificación General</option>
-        </select>
-        <table id="tabla-clasificacion">
-            <thead>
-                <tr>
-                    <th>Pos</th>
-                    <th>Jugador</th>
-                    <th>Puntos</th>
-                    <th>Partidas</th>
-                </tr>
-            </thead>
-            <tbody id="body-clasificacion">
-            </tbody>
-        </table>
+            </select>
+        
+        <div style="overflow-x: auto; padding-bottom: 10px;">
+            <table id="tabla-clasificacion" style="min-width: 600px;">
+                <thead>
+                    <tr>
+                        <th>Pos</th>
+                        <th>Jugador</th>
+                        <th>Puntos</th>
+                        <th>Partidas</th>
+                    </tr>
+                </thead>
+                <tbody id="body-clasificacion">
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <details class="card" id="seccion-generador" open>
         <summary>🎲 GENERADOR DE JORNADAS</summary>
         <div class="details-content">
-            <p class="subtitle">Marca los jugadores presentes. El generador optimizará las mesas evitando que alguien juegue solo.</p>
+            
+            <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2); padding: 20px; border-radius: 16px; margin-bottom: 25px;">
+                <label style="font-size: 12px; color: var(--primary); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px;">🏷️ Selecciona la Jornada Actual:</label>
+                
+                <div class="jornada-counter">
+                    <button class="btn-counter" onclick="cambiarJornada(-1)">-</button>
+                    <span id="display-jornada" style="font-size: 1.5rem; font-weight: 900; color: var(--accent); min-width: 100px; text-align: center; letter-spacing: 2px;">J1</span>
+                    <button class="btn-counter" onclick="cambiarJornada(1)">+</button>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px; margin-bottom: 0;">Los resultados se guardarán automáticamente bajo esta etiqueta.</p>
+            </div>
+
+            <p class="subtitle">Marca los jugadores presentes para optimizar las mesas:</p>
             <div id="jugadores-presentes" class="checkbox-container"></div>
             
             <div style="display: flex; gap: 15px; margin-top: 25px; flex-wrap: wrap;">
