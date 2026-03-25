@@ -1,3 +1,4 @@
+
 let jugadores = JSON.parse(localStorage.getItem('commander_jugadores')) || [];
 let historial = JSON.parse(localStorage.getItem('commander_historial')) || [];
 let contadorManual = 0; 
@@ -6,17 +7,15 @@ const puntosGlobales = [4, 3, 2, 1, 0];
 let ventanaTV = null;
 let ultimasMesasGeneradas = []; 
 
-// --- NUEVAS VARIABLES GLOBALES ---
 let mostrarTodosJugadores = false;
+let isModoEdicionExcel = false; 
 const jornadasLista = ['J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'Semifinal', 'Final'];
 let indiceJornadaActual = 0;
 
-// --- FUNCIONES DE INTERFAZ Y JORNADAS ---
 function cambiarJornada(direccion) {
     indiceJornadaActual += direccion;
     if (indiceJornadaActual < 0) indiceJornadaActual = 0;
     if (indiceJornadaActual >= jornadasLista.length) indiceJornadaActual = jornadasLista.length - 1;
-    
     document.getElementById('display-jornada').innerText = jornadasLista[indiceJornadaActual];
     localStorage.setItem('commander_jornada_activa', indiceJornadaActual);
 }
@@ -29,16 +28,13 @@ function toggleMostrarTodos() {
 function toggleFullscreen() {
     const card = document.getElementById('tarjeta-clasificacion');
     const btn = document.getElementById('btn-fullscreen');
-    
     card.classList.toggle('fullscreen-card');
-    
     if(card.classList.contains('fullscreen-card')) {
         btn.innerHTML = "↙️ Salir Pantalla Completa";
-        // Si se pone en pantalla completa, forzamos a mostrar a todos los jugadores automáticamente
         mostrarTodosJugadores = true; 
     } else {
         btn.innerHTML = "🔲 Pantalla Completa";
-        mostrarTodosJugadores = false; // Volvemos a ocultar
+        mostrarTodosJugadores = false;
     }
     renderizarClasificacion();
 }
@@ -57,6 +53,84 @@ function agregarJugador() {
         input.value = '';
         guardarDatos();
     }
+}
+
+// --- LÓGICA DE EDICIÓN MODO EXCEL CON BOTONES FIJOS ---
+function activarEdicionExcel() {
+    isModoEdicionExcel = true;
+    mostrarTodosJugadores = true; 
+    
+    // Ocultar selector normal y mostrar panel Excel
+    document.getElementById('modo-clasificacion').style.display = 'none';
+    document.getElementById('excel-controls').style.display = 'flex';
+    
+    document.getElementById('tarjeta-clasificacion').scrollIntoView({ behavior: 'smooth' });
+    renderizarClasificacion();
+}
+
+function cancelarEdicionExcel() {
+    isModoEdicionExcel = false;
+    
+    // Restaurar vista normal
+    document.getElementById('modo-clasificacion').style.display = 'block';
+    document.getElementById('excel-controls').style.display = 'none';
+    
+    document.getElementById('modo-clasificacion').value = 'general'; // Volvemos a la general por defecto
+    actualizarUI();
+}
+
+// Actualiza el número TOTAL de la fila instantáneamente cuando escribes
+function actualizarFilaExcel(inputEl) {
+    let tr = inputEl.closest('tr');
+    let inputs = tr.querySelectorAll('.excel-cell');
+    let total = 0;
+    inputs.forEach(inp => {
+        let val = parseInt(inp.value);
+        if (!isNaN(val)) total += val;
+    });
+    let celdaTotal = tr.querySelector('.excel-total');
+    if(celdaTotal) celdaTotal.innerText = total;
+}
+
+function guardarEdicionExcel() {
+    let inputs = document.querySelectorAll('.excel-cell');
+    let cambiosGuardados = false;
+
+    inputs.forEach(inp => {
+        let idJugador = parseInt(inp.getAttribute('data-jid'));
+        let jornada = inp.getAttribute('data-jor');
+        let valorNuevo = parseInt(inp.value) || 0;
+        let valorViejo = parseInt(inp.defaultValue) || 0; 
+
+        if (valorNuevo !== valorViejo) {
+            let diferencia = valorNuevo - valorViejo;
+            let jugador = jugadores.find(j => j.id === idJugador);
+
+            if (jugador) {
+                jugador.puntos += diferencia;
+                let etiquetaGuardado = jornada === "BASE" ? "Ajuste Manual" : jornada;
+
+                historial.unshift({
+                    id: Date.now() + Math.floor(Math.random() * 10000), 
+                    fecha: etiquetaGuardado,
+                    resultados: [{ idJugador: jugador.id, nombre: jugador.nombre, puntos: diferencia, posicion: "-" }]
+                });
+                cambiosGuardados = true;
+            }
+        }
+    });
+
+    if (cambiosGuardados) {
+        alert("💾 Puntuaciones guardadas con éxito.");
+        guardarDatos();
+    }
+    
+    // Restaurar interfaz
+    isModoEdicionExcel = false;
+    document.getElementById('modo-clasificacion').style.display = 'block';
+    document.getElementById('excel-controls').style.display = 'none';
+    document.getElementById('modo-clasificacion').value = 'excel';
+    actualizarUI();
 }
 
 function anadirPuntosJornada(id) {
@@ -370,6 +444,9 @@ function reiniciarApp() {
 
 function actualizarFiltroFechas() {
     const select = document.getElementById('modo-clasificacion');
+    
+    if (isModoEdicionExcel) return; // Si editamos, no tocamos el selector
+
     const valorActual = select.value;
 
     let fechasUnicas = new Set();
@@ -381,7 +458,6 @@ function actualizarFiltroFechas() {
     let opcionesHTML = `<option value="general">🌟 Clasificación General</option>`;
     opcionesHTML += `<option value="excel">📊 Vista Detallada (Excel)</option>`; 
     
-    // --- ORDENAR JORNADAS ALFABÉTICA Y NUMÉRICAMENTE PARA EL DESPLEGABLE ---
     let jornadasOrdenadas = Array.from(fechasUnicas).sort((a, b) => {
         let numA = a.match(/\d+/) ? parseInt(a.match(/\d+/)[0]) : NaN;
         let numB = b.match(/\d+/) ? parseInt(b.match(/\d+/)[0]) : NaN;
@@ -404,7 +480,7 @@ function actualizarFiltroFechas() {
 }
 
 function renderizarClasificacion() {
-    const modo = document.getElementById('modo-clasificacion').value;
+    const modo = isModoEdicionExcel ? 'excel' : document.getElementById('modo-clasificacion').value;
     const bodyClasificacion = document.getElementById('body-clasificacion');
     const theadClasificacion = document.querySelector('#tabla-clasificacion thead');
     let datosClasificacion = [];
@@ -416,7 +492,6 @@ function renderizarClasificacion() {
             if (!jornadasUnicas.includes(fecha)) { jornadasUnicas.push(fecha); }
         });
         
-        // --- ORDENAR COLUMNAS (J1, J2, J3...) MATEMÁTICAMENTE ---
         jornadasUnicas.sort((a, b) => {
             let numA = a.match(/\d+/) ? parseInt(a.match(/\d+/)[0]) : NaN;
             let numB = b.match(/\d+/) ? parseInt(b.match(/\d+/)[0]) : NaN;
@@ -428,7 +503,7 @@ function renderizarClasificacion() {
 
         let statsTemp = {};
         jugadores.forEach(j => {
-            statsTemp[j.id] = { nombre: j.nombre, totalGuardado: j.puntos, sumaHistorial: 0, previo: 0, jornadas: {} };
+            statsTemp[j.id] = { id: j.id, nombre: j.nombre, totalGuardado: j.puntos, sumaHistorial: 0, previo: 0, jornadas: {} };
             jornadasUnicas.forEach(jor => statsTemp[j.id].jornadas[jor] = 0);
         });
 
@@ -449,19 +524,20 @@ function renderizarClasificacion() {
         });
 
         let theadHTML = `<tr><th>Pos</th><th style="text-align:left;">Jugador</th>`;
-        if (mostrarPrevio) theadHTML += `<th style="color: #94a3b8;" title="Puntos de jornadas antiguas">Base</th>`;
+        if (mostrarPrevio || isModoEdicionExcel) theadHTML += `<th style="color: #94a3b8;" title="Puntos de jornadas antiguas">Base</th>`;
         jornadasUnicas.forEach(j => { theadHTML += `<th>${j}</th>`; });
         theadHTML += `<th style="color: var(--primary);">Total</th></tr>`;
         theadClasificacion.innerHTML = theadHTML;
 
-        datosClasificacion = Object.values(statsTemp).sort((a, b) => b.totalGuardado - a.totalGuardado);
+        // En modo edición mostramos a TODOS (incluso los de 0 puntos). Si no, solo los activos.
+        datosClasificacion = Object.values(statsTemp).filter(j => isModoEdicionExcel || j.totalGuardado !== 0 || j.sumaHistorial !== 0 || j.previo !== 0);
+        datosClasificacion.sort((a, b) => b.totalGuardado - a.totalGuardado);
 
         if(datosClasificacion.length === 0) {
-            bodyClasificacion.innerHTML = `<tr><td colspan="${jornadasUnicas.length + (mostrarPrevio ? 4 : 3)}" style="color:#64748b; font-style:italic; padding: 25px;">No hay jugadores.</td></tr>`;
+            bodyClasificacion.innerHTML = `<tr><td colspan="100%" style="color:#64748b; font-style:italic; padding: 25px;">No hay jugadores.</td></tr>`;
             return;
         }
 
-        // --- SISTEMA DE CORTE A 15 JUGADORES ---
         let limite = mostrarTodosJugadores ? datosClasificacion.length : 15;
         let filasHTML = datosClasificacion.slice(0, limite).map((j, i) => {
             let medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
@@ -472,19 +548,28 @@ function renderizarClasificacion() {
                 <td style="color:#64748b; font-weight:700;">${i + 1}</td>
                 <td style="text-align: left; font-weight: 600; font-size: 15px; color: white;"><span style="margin-right:12px; font-size:1.2rem;">${medalla}</span> ${j.nombre}</td>`;
             
-            if (mostrarPrevio) row += `<td style="color:#94a3b8; font-size:13px; font-weight:600;">${j.previo !== 0 ? j.previo : '-'}</td>`;
+            if (mostrarPrevio || isModoEdicionExcel) {
+                if (isModoEdicionExcel) {
+                    row += `<td><input type="number" class="excel-cell" data-jid="${j.id}" data-jor="BASE" value="${j.previo}" oninput="actualizarFilaExcel(this)"></td>`;
+                } else {
+                    row += `<td style="color:#94a3b8; font-size:13px; font-weight:600;">${j.previo !== 0 ? j.previo : '-'}</td>`;
+                }
+            }
 
             jornadasUnicas.forEach(jor => {
                 let pts = j.jornadas[jor];
-                row += `<td style="color:#cbd5e1; font-size:14px;">${pts !== 0 ? pts : '-'}</td>`;
+                if (isModoEdicionExcel) {
+                    row += `<td><input type="number" class="excel-cell" data-jid="${j.id}" data-jor="${jor}" value="${pts}" oninput="actualizarFilaExcel(this)"></td>`;
+                } else {
+                    row += `<td style="color:#cbd5e1; font-size:14px;">${pts !== 0 ? pts : '-'}</td>`;
+                }
             });
 
-            row += `<td class="puntos-destacados ${claseColor}" style="font-weight:700; font-size:1.2rem; background: rgba(139, 92, 246, 0.1); border-radius: 0 12px 12px 0;">${j.totalGuardado}</td></tr>`;
+            row += `<td class="puntos-destacados excel-total ${claseColor}" style="font-weight:700; font-size:1.2rem; background: rgba(139, 92, 246, 0.1); border-radius: 0 12px 12px 0;">${j.totalGuardado}</td></tr>`;
             return row;
         }).join('');
         
-        // Agregar botón de "Ver más" si superan los 15
-        if (datosClasificacion.length > 15) {
+        if (datosClasificacion.length > 15 && !isModoEdicionExcel) {
             let textBtn = mostrarTodosJugadores ? "Ocultar Jugadores" : `Mostrar los ${datosClasificacion.length - 15} jugadores restantes ▼`;
             filasHTML += `<tr><td colspan="100%" style="padding:0;"><button class="btn-ver-mas" onclick="toggleMostrarTodos()">${textBtn}</button></td></tr>`;
         }
@@ -547,12 +632,9 @@ function actualizarUI() {
         `<li>
             <div>
                 <strong style="font-size: 15px;">${j.nombre}</strong>
-                <div style="color: var(--text-muted); font-size: 11px; margin-top: 2px;">${j.puntos} pts | ${j.partidas} partidas</div>
             </div>
             <div style="display: flex; gap: 8px;">
-                <button class="btn-jornada" onclick="anadirPuntosJornada(${j.id})" title="Añadir puntos a una jornada específica">📊 +JORNADA</button>
-                <button class="btn-edit" onclick="editarJugador(${j.id})">✏️ EDITAR</button>
-                <button class="btn-delete" onclick="eliminarJugador(${j.id})">✖</button>
+                <button class="btn-delete" onclick="eliminarJugador(${j.id})">BORRAR</button>
             </div>
         </li>`
     ).join('');
@@ -561,7 +643,6 @@ function actualizarUI() {
         `<label><input type="checkbox" class="check-jugador" value="${j.id}" checked> ${j.nombre}</label>`
     ).join('');
 
-    // Recuperar memoria del contador de jornadas
     let guardadoJornada = localStorage.getItem('commander_jornada_activa');
     if(guardadoJornada !== null) {
         indiceJornadaActual = parseInt(guardadoJornada);
