@@ -18,7 +18,7 @@
 
     <h1>✨ LIGA COMMANDER ✨</h1>
 
-    <div class="card" id="tarjeta-clasificacion">
+ <div class="card" id="tarjeta-clasificacion">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <h2 style="margin: 0;">🏆 CLASIFICACIÓN</h2>
             <button id="btn-fullscreen" class="btn-header" onclick="toggleFullscreen()">🔲 Pantalla Completa</button>
@@ -26,7 +26,12 @@
         
         <select id="modo-clasificacion" onchange="renderizarClasificacion()">
             <option value="general">🌟 Clasificación General</option>
-            </select>
+        </select>
+
+        <div id="excel-controls" style="display: none; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+            <button style="background: var(--success); color: white; border: none; padding: 15px; font-size: 14px; font-weight: bold; cursor: pointer; flex: 1; border-radius: 12px; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);" onclick="guardarEdicionExcel()">💾 GUARDAR CAMBIOS</button>
+            <button style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: #fca5a5; padding: 15px; font-size: 14px; font-weight: bold; cursor: pointer; flex: 1; border-radius: 12px;" onclick="cancelarEdicionExcel()">❌ CANCELAR</button>
+        </div>
         
         <div style="overflow-x: auto; padding-bottom: 10px;">
             <table id="tabla-clasificacion" style="min-width: 600px;">
@@ -43,7 +48,6 @@
             </table>
         </div>
     </div>
-
     <details class="card" id="seccion-generador" open>
         <summary>🎲 GENERADOR DE JORNADAS</summary>
         <div class="details-content">
@@ -71,13 +75,18 @@
         </div>
     </details>
 
-    <details class="card">
+   <details class="card">
         <summary>👥 GESTIONAR JUGADORES</summary>
         <div class="details-content">
             <div style="display: flex; gap: 12px; align-items: center;">
                 <input type="text" id="nuevo-jugador" placeholder="Introduce el nombre..." onkeypress="if(event.key === 'Enter') agregarJugador()">
                 <button class="btn-add" onclick="agregarJugador()">+ Añadir</button>
             </div>
+            
+            <button class="btn-jornada" style="width: 100%; margin-top: 25px; font-size: 14px; padding: 14px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-weight: bold; cursor: pointer;" onclick="activarEdicionExcel()">
+                📊 MODO EXCEL: EDITAR CUADRÍCULA ENTERA
+            </button>
+
             <ul id="lista-jugadores"></ul>
         </div>
     </details>
