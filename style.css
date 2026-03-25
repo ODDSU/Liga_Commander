@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap');
+
 :root {
     --bg-dark: #09090e; 
     --text-main: #f8fafc;
@@ -70,6 +72,72 @@ h2 { font-size: 1.4rem; margin-top: 0; margin-bottom: 20px; font-weight: 600; di
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
 
+/* --- PANTALLA COMPLETA: MÁXIMA CAPACIDAD DE JUGADORES --- */
+.fullscreen-card {
+    position: fixed !important;
+    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+    width: 100vw !important; height: 100vh !important;
+    z-index: 99999 !important; margin: 0 !important; border-radius: 0 !important;
+    max-width: none !important; 
+    overflow-y: auto !important; /* IMPORTANTE: Reactivamos el scroll por si la liga es gigante */
+    background: #09090e !important;
+    padding: 2vh 2vw !important; 
+    box-sizing: border-box;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Ocultamos la barra de scroll para que parezca una TV limpia aunque hagas scroll con la rueda */
+.fullscreen-card::-webkit-scrollbar { display: none !important; }
+
+.fullscreen-card > * {
+    max-width: 95% !important; 
+    margin-left: auto !important; 
+    margin-right: auto !important;
+}
+
+/* Cabecera minúscula para regalarle espacio a la tabla */
+.fullscreen-card h2 { 
+    font-size: 2.5vh !important; 
+    margin-bottom: 0.5vh !important; 
+}
+.fullscreen-card select#modo-clasificacion { 
+    font-size: 1.8vh !important; 
+    padding: 0.5vh !important; 
+    margin-bottom: 1vh !important; 
+}
+
+.fullscreen-card div[style*="overflow-x"] {
+    flex-grow: 1;
+    width: 100%;
+}
+
+.fullscreen-card table { 
+    margin-top: 0; 
+    border-spacing: 0 0.2vh !important; /* Reducimos el hueco entre filas a casi nada */
+    width: 100%;
+}
+
+/* Celdas hiper-apretadas para meter a 30+ personas sin problema */
+.fullscreen-card th { 
+    font-size: 1.3vh !important; 
+    padding: 0.4vh 1vw !important; 
+}
+.fullscreen-card td { 
+    padding: 0.2vh 1vw !important; /* Mínimo relleno vertical */
+    font-size: 1.6vh !important; 
+}
+.fullscreen-card td:nth-child(2) { 
+    font-size: 1.8vh !important; /* Nombres un poco más grandes */
+} 
+.fullscreen-card .puntos-destacados { 
+    font-size: 2vh !important; /* Puntos totales */
+}
+.fullscreen-card .btn-header {
+    font-size: 1.2vh !important;
+    padding: 0.5vh 1vh !important;
+}
+
 /* --- ACORDEONES --- */
 details.card { transition: all 0.3s ease; }
 details.card > summary::after { content: '▼'; margin-left: auto; font-size: 0.8rem; color: var(--primary); transition: transform 0.3s ease; }
@@ -115,6 +183,18 @@ button:active { transform: translateY(1px); }
 .btn-danger:hover { background: var(--danger); color: white; }
 .btn-tv { background: linear-gradient(135deg, #f59e0b, #d97706); width: 100%; font-size: 1.1rem; padding: 18px; margin-top: 25px; margin-bottom: 25px; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3); border: 1px solid rgba(255, 255, 255, 0.2);}
 .btn-tv:hover { box-shadow: 0 15px 35px rgba(245, 158, 11, 0.5); transform: translateY(-4px); }
+.btn-jornada { background: rgba(16, 185, 129, 0.1); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); padding: 8px 14px; font-size: 10px; border-radius: 8px; letter-spacing: 1px; }
+.btn-jornada:hover { background: var(--success); color: white; border-color: var(--success); }
+
+.btn-header { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 12px; }
+.btn-header:hover { background: rgba(255, 255, 255, 0.1); color: white; }
+
+.jornada-counter { display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 12px; width: max-content; border: 1px solid rgba(139, 92, 246, 0.3); }
+.btn-counter { background: rgba(139, 92, 246, 0.2); color: white; border: none; border-radius: 8px; width: 40px; height: 40px; font-size: 20px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+.btn-counter:hover { background: var(--primary); transform: scale(1.05); }
+
+.btn-ver-mas { width: 100%; border-radius: 0 0 12px 12px; background: rgba(139, 92, 246, 0.1); color: var(--primary); border: none; padding: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+.btn-ver-mas:hover { background: rgba(139, 92, 246, 0.2); color: white; }
 
 /* --- LISTAS Y TABLAS --- */
 ul { list-style: none; padding: 0; margin-top: 25px; }
