@@ -6,6 +6,43 @@ const puntosGlobales = [4, 3, 2, 1, 0];
 let ventanaTV = null;
 let ultimasMesasGeneradas = []; 
 
+// --- NUEVAS VARIABLES GLOBALES ---
+let mostrarTodosJugadores = false;
+const jornadasLista = ['J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'Semifinal', 'Final'];
+let indiceJornadaActual = 0;
+
+// --- FUNCIONES DE INTERFAZ Y JORNADAS ---
+function cambiarJornada(direccion) {
+    indiceJornadaActual += direccion;
+    if (indiceJornadaActual < 0) indiceJornadaActual = 0;
+    if (indiceJornadaActual >= jornadasLista.length) indiceJornadaActual = jornadasLista.length - 1;
+    
+    document.getElementById('display-jornada').innerText = jornadasLista[indiceJornadaActual];
+    localStorage.setItem('commander_jornada_activa', indiceJornadaActual);
+}
+
+function toggleMostrarTodos() {
+    mostrarTodosJugadores = !mostrarTodosJugadores;
+    renderizarClasificacion();
+}
+
+function toggleFullscreen() {
+    const card = document.getElementById('tarjeta-clasificacion');
+    const btn = document.getElementById('btn-fullscreen');
+    
+    card.classList.toggle('fullscreen-card');
+    
+    if(card.classList.contains('fullscreen-card')) {
+        btn.innerHTML = "↙️ Salir Pantalla Completa";
+        // Si se pone en pantalla completa, forzamos a mostrar a todos los jugadores automáticamente
+        mostrarTodosJugadores = true; 
+    } else {
+        btn.innerHTML = "🔲 Pantalla Completa";
+        mostrarTodosJugadores = false; // Volvemos a ocultar
+    }
+    renderizarClasificacion();
+}
+
 function guardarDatos() {
     localStorage.setItem('commander_jugadores', JSON.stringify(jugadores));
     localStorage.setItem('commander_historial', JSON.stringify(historial));
@@ -20,6 +57,36 @@ function agregarJugador() {
         input.value = '';
         guardarDatos();
     }
+}
+
+function anadirPuntosJornada(id) {
+    let jugador = jugadores.find(j => j.id === id);
+    if (!jugador) return;
+
+    let jornadaSugerida = jornadasLista[indiceJornadaActual];
+
+    let nombreJornada = prompt(`Añadir registro a ${jugador.nombre}\n\nIntroduce el identificador de la Jornada\n(Ejemplo: J1, J2, Semifinal...):`, jornadaSugerida);
+    if (!nombreJornada || nombreJornada.trim() === "") return;
+
+    let puntosStr = prompt(`¿Cuántos puntos consiguió ${jugador.nombre} en "${nombreJornada}"?`);
+    if (puntosStr === null) return;
+
+    let puntos = parseInt(puntosStr);
+    if (isNaN(puntos)) {
+        alert("❌ Por favor, introduce un número válido.");
+        return;
+    }
+
+    jugador.puntos += puntos;
+    jugador.partidas += 1;
+
+    historial.unshift({
+        id: Date.now() + Math.floor(Math.random() * 1000), 
+        fecha: nombreJornada.trim(),
+        resultados: [{ idJugador: jugador.id, nombre: jugador.nombre, puntos: puntos, posicion: "-" }]
+    });
+
+    guardarDatos();
 }
 
 function editarJugador(id) {
@@ -72,11 +139,8 @@ function generarMesas() {
         if (mesas_de_4 === 1) { mesas_de_4 = 0; mesas_de_5 = 1; } 
         else if (mesas_de_4 === 2) { mesas_de_4 = 0; mesas_de_3 = 3; } 
         else { mesas_de_4 -= 2; mesas_de_3 += 3; }
-    } else if (resto === 2) { 
-        mesas_de_4 -= 1; mesas_de_3 += 2;
-    } else if (resto === 3) { 
-        mesas_de_3 += 1;
-    }
+    } else if (resto === 2) { mesas_de_4 -= 1; mesas_de_3 += 2;
+    } else if (resto === 3) { mesas_de_3 += 1; }
 
     let mesas = [];
     let indexJugador = 0;
@@ -92,10 +156,7 @@ function generarMesas() {
 function mostrarMesas(mesas) {
     const contenedor = document.getElementById('mesas-generadas');
     contenedor.innerHTML = '';
-
-    if(mesas.length > 0) {
-        contenedor.innerHTML += `<button class="btn-tv" onclick="abrirModoTV()">📺 PROYECTAR EN TV</button>`;
-    }
+    if(mesas.length > 0) { contenedor.innerHTML += `<button class="btn-tv" onclick="abrirModoTV()">📺 PROYECTAR EN TV</button>`; }
 
     mesas.forEach((mesa, index) => {
         let html = `<div class="pod" id="pod-${index}"><h3>🔮 Mesa Aleatoria ${index + 1} <span style="font-size:12px; color:#94a3b8; font-weight:normal;">(${mesa.length} Jugadores)</span></h3>`;
@@ -106,37 +167,24 @@ function mostrarMesas(mesas) {
             html += `<label>${i+1}º PUESTO (+${puntosGlobales[i]} PTS):</label>
                      <select id="sel-pod-${index}-pos-${i}" onchange="actualizarDesplegables('pod-${index}', ${mesa.length})">
                         <option value="">-- Selecciona jugador --</option>`;
-            mesa.forEach(jugador => {
-                html += `<option value="${jugador.id}">${jugador.nombre}</option>`;
-            });
+            mesa.forEach(jugador => { html += `<option value="${jugador.id}">${jugador.nombre}</option>`; });
             html += `</select>`;
         }
-
-        html += `<button class="btn-save-pod" onclick="guardarResultadoMesa('pod-${index}', ${mesa.length})">Confirmar Resultado</button>`;
-        html += `</div>`;
+        html += `<button class="btn-save-pod" onclick="guardarResultadoMesa('pod-${index}', ${mesa.length})">Confirmar Resultado</button></div>`;
         contenedor.innerHTML += html;
     });
     contenedor.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function abrirModoTV() {
-    if(ultimasMesasGeneradas.length === 0) {
-        alert("Genera las mesas primero.");
-        return;
-    }
-
-    if (!ventanaTV || ventanaTV.closed) {
-        ventanaTV = window.open("", "VentanaTVCommander", "width=1280,height=720");
-    }
+    if(ultimasMesasGeneradas.length === 0) { alert("Genera las mesas primero."); return; }
+    if (!ventanaTV || ventanaTV.closed) { ventanaTV = window.open("", "VentanaTVCommander", "width=1280,height=720"); }
 
     let htmlPods = "";
     ultimasMesasGeneradas.forEach((mesa, index) => {
         let delay = index * 0.15; 
-        htmlPods += `<div class="tv-pod" style="animation-delay: ${delay}s">
-                        <h3>MESA ${index + 1}</h3>`;
-        mesa.forEach(jugador => {
-            htmlPods += `<div class="tv-player"><span class="tv-icon">⚡</span> ${jugador.nombre}</div>`;
-        });
+        htmlPods += `<div class="tv-pod" style="animation-delay: ${delay}s"><h3>MESA ${index + 1}</h3>`;
+        mesa.forEach(jugador => { htmlPods += `<div class="tv-player"><span class="tv-icon">⚡</span> ${jugador.nombre}</div>`; });
         htmlPods += `</div>`;
     });
 
@@ -149,10 +197,7 @@ function abrirModoTV() {
             <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700;900&display=swap" rel="stylesheet">
             <style>
                 ::-webkit-scrollbar { display: none; }
-                body {
-                    -ms-overflow-style: none; scrollbar-width: none; background: #09090e; color: white; font-family: 'Poppins', sans-serif;
-                    margin: 0; min-height: 100vh; overflow-y: auto; overflow-x: hidden; position: relative; cursor: pointer; 
-                }
+                body { -ms-overflow-style: none; scrollbar-width: none; background: #09090e; color: white; font-family: 'Poppins', sans-serif; margin: 0; min-height: 100vh; overflow-y: auto; overflow-x: hidden; position: relative; cursor: pointer; }
                 .bg-auras { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; pointer-events: none; }
                 .aura { position: absolute; border-radius: 50%; filter: blur(150px); opacity: 0.5; animation: floatAura 20s infinite alternate ease-in-out; }
                 .aura-1 { width: 60vw; height: 60vw; background: #5b21b6; top: -20%; left: -10%; }
@@ -177,9 +222,7 @@ function abrirModoTV() {
             </style>
         </head>
         <body onclick="this.classList.add('is-playing'); document.getElementById('start-overlay').style.display='none'; this.style.cursor='default';">
-            <div id="start-overlay">
-                <div class="click-prompt">Haz clic en cualquier parte para iniciar...</div>
-            </div>
+            <div id="start-overlay"><div class="click-prompt">Haz clic en cualquier parte para iniciar...</div></div>
             <div id="main-content">
                 <div class="bg-auras"><div class="aura aura-1"></div><div class="aura aura-2"></div></div>
                 <div class="tv-title">EMPAREJAMIENTOS</div>
@@ -188,7 +231,6 @@ function abrirModoTV() {
         </body>
         </html>
     `;
-
     ventanaTV.document.open();
     ventanaTV.document.write(htmlPantallaTV);
     ventanaTV.document.close();
@@ -197,26 +239,15 @@ function abrirModoTV() {
 
 function crearMesaManual() {
     if(jugadores.length < 3) { alert("Añade jugadores primero."); return; }
-
     const contenedor = document.getElementById('mesas-generadas');
-    let html = `<div class="pod manual" id="manual-${contadorManual}">
-        <h3 style="color:#a855f7;">✍️ Mesa Manual</h3>
-        <p style="font-size:13px; color:#94a3b8; margin-top:-10px; margin-bottom: 20px;">Asigna las posiciones libremente.</p>`;
-        
+    let html = `<div class="pod manual" id="manual-${contadorManual}"><h3 style="color:#a855f7;">✍️ Mesa Manual</h3><p style="font-size:13px; color:#94a3b8; margin-top:-10px; margin-bottom: 20px;">Asigna las posiciones libremente.</p>`;
     for(let i=0; i < 5; i++) {
         let opcional = i >= 3 ? " <span style='font-weight:normal; text-transform:none; color:#64748b;'>(Opcional)</span>" : "";
-        html += `<label>${i+1}º PUESTO (+${puntosGlobales[i]} PTS) ${opcional}:</label>
-                 <select id="sel-manual-${contadorManual}-pos-${i}" onchange="actualizarDesplegables('manual-${contadorManual}', 5)">
-                    <option value="">-- Elige un jugador --</option>`;
-        jugadores.forEach(jugador => {
-            html += `<option value="${jugador.id}">${jugador.nombre}</option>`;
-        });
+        html += `<label>${i+1}º PUESTO (+${puntosGlobales[i]} PTS) ${opcional}:</label><select id="sel-manual-${contadorManual}-pos-${i}" onchange="actualizarDesplegables('manual-${contadorManual}', 5)"><option value="">-- Elige un jugador --</option>`;
+        jugadores.forEach(jugador => { html += `<option value="${jugador.id}">${jugador.nombre}</option>`; });
         html += `</select>`;
     }
-
-    html += `<button class="btn-save-pod" onclick="guardarResultadoMesa('manual-${contadorManual}', 5)">Confirmar Manual</button>`;
-    html += `</div>`;
-    
+    html += `<button class="btn-save-pod" onclick="guardarResultadoMesa('manual-${contadorManual}', 5)">Confirmar Manual</button></div>`;
     contenedor.insertAdjacentHTML('afterbegin', html);
     contadorManual++;
 }
@@ -227,20 +258,15 @@ function actualizarDesplegables(prefijoMesa, numPuestos) {
         let s = document.getElementById(`sel-${prefijoMesa}-pos-${i}`);
         if (s) selects.push(s);
     }
-    
     let seleccionados = selects.map(s => s.value).filter(v => v !== "");
-    
     selects.forEach(select => {
         let valorActual = select.value;
         Array.from(select.options).forEach(opt => {
             if (opt.value === "") return;
-            
             if (seleccionados.includes(opt.value) && opt.value !== valorActual) {
-                opt.disabled = true;
-                opt.text = opt.text.replace(" (Ya asignado)", "") + " (Ya asignado)";
+                opt.disabled = true; opt.text = opt.text.replace(" (Ya asignado)", "") + " (Ya asignado)";
             } else {
-                opt.disabled = false;
-                opt.text = opt.text.replace(" (Ya asignado)", "");
+                opt.disabled = false; opt.text = opt.text.replace(" (Ya asignado)", "");
             }
         });
     });
@@ -255,7 +281,6 @@ function guardarResultadoMesa(prefijoMesa, numJugadores) {
         if(!selectEl) continue;
 
         const idJugador = selectEl.value;
-        
         if(!idJugador) {
             if (i < 3) { alert(`Falta asignar el ${i+1}º puesto.`); return; } 
             else { continue; }
@@ -276,16 +301,18 @@ function procesarGuardado(detallesMesa, idElemento) {
         jugador.puntos += detalle.puntos;
         jugador.partidas += 1;
     });
-    historial.unshift({ id: Date.now(), fecha: new Date().toLocaleString(), resultados: detallesMesa });
+
+    let nombreJornada = jornadasLista[indiceJornadaActual] || "J1";
+    let fechaGuardado = `${nombreJornada}, ${new Date().toLocaleTimeString()}`;
+
+    historial.unshift({ id: Date.now(), fecha: fechaGuardado, resultados: detallesMesa });
     
     let sufijo = idElemento.includes('pod') ? idElemento : `manual-${idElemento.split('-')[1]}`;
     const mesaGuardada = document.getElementById(idElemento.includes('pod') ? idElemento : idElemento);
-    
     if(mesaGuardada) {
         mesaGuardada.style.opacity = '0';
         setTimeout(() => { mesaGuardada.style.display = 'none'; }, 300);
     }
-    
     guardarDatos(); 
 }
 
@@ -352,12 +379,23 @@ function actualizarFiltroFechas() {
     });
 
     let opcionesHTML = `<option value="general">🌟 Clasificación General</option>`;
-    Array.from(fechasUnicas).forEach(fecha => {
-        opcionesHTML += `<option value="${fecha}">📅 Jornada del ${fecha}</option>`;
+    opcionesHTML += `<option value="excel">📊 Vista Detallada (Excel)</option>`; 
+    
+    // --- ORDENAR JORNADAS ALFABÉTICA Y NUMÉRICAMENTE PARA EL DESPLEGABLE ---
+    let jornadasOrdenadas = Array.from(fechasUnicas).sort((a, b) => {
+        let numA = a.match(/\d+/) ? parseInt(a.match(/\d+/)[0]) : NaN;
+        let numB = b.match(/\d+/) ? parseInt(b.match(/\d+/)[0]) : NaN;
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        if (!isNaN(numA)) return -1;
+        if (!isNaN(numB)) return 1;
+        return a.localeCompare(b);
+    });
+
+    jornadasOrdenadas.forEach(fecha => {
+        opcionesHTML += `<option value="${fecha}">📅 ${fecha}</option>`;
     });
 
     select.innerHTML = opcionesHTML;
-    
     if (Array.from(select.options).some(opt => opt.value === valorActual)) {
         select.value = valorActual;
     } else {
@@ -368,47 +406,140 @@ function actualizarFiltroFechas() {
 function renderizarClasificacion() {
     const modo = document.getElementById('modo-clasificacion').value;
     const bodyClasificacion = document.getElementById('body-clasificacion');
+    const theadClasificacion = document.querySelector('#tabla-clasificacion thead');
     let datosClasificacion = [];
 
-    if (modo === 'general') {
-        datosClasificacion = [...jugadores];
-    } else {
+    if (modo === 'excel') {
+        let jornadasUnicas = [];
+        historial.forEach(h => {
+            let fecha = h.fecha.split(',')[0].trim();
+            if (!jornadasUnicas.includes(fecha)) { jornadasUnicas.push(fecha); }
+        });
+        
+        // --- ORDENAR COLUMNAS (J1, J2, J3...) MATEMÁTICAMENTE ---
+        jornadasUnicas.sort((a, b) => {
+            let numA = a.match(/\d+/) ? parseInt(a.match(/\d+/)[0]) : NaN;
+            let numB = b.match(/\d+/) ? parseInt(b.match(/\d+/)[0]) : NaN;
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            if (!isNaN(numA)) return -1;
+            if (!isNaN(numB)) return 1;
+            return a.localeCompare(b);
+        });
+
         let statsTemp = {};
-        jugadores.forEach(j => statsTemp[j.id] = { ...j, puntos: 0, partidas: 0 });
+        jugadores.forEach(j => {
+            statsTemp[j.id] = { nombre: j.nombre, totalGuardado: j.puntos, sumaHistorial: 0, previo: 0, jornadas: {} };
+            jornadasUnicas.forEach(jor => statsTemp[j.id].jornadas[jor] = 0);
+        });
 
         historial.forEach(h => {
             let fechaPartida = h.fecha.split(',')[0].trim();
-            if (fechaPartida === modo) {
-                h.resultados.forEach(r => {
-                    if (statsTemp[r.idJugador]) {
-                        statsTemp[r.idJugador].puntos += r.puntos;
-                        statsTemp[r.idJugador].partidas += 1;
-                    }
-                });
-            }
+            h.resultados.forEach(r => {
+                if (statsTemp[r.idJugador]) {
+                    statsTemp[r.idJugador].jornadas[fechaPartida] += r.puntos;
+                    statsTemp[r.idJugador].sumaHistorial += r.puntos;
+                }
+            });
         });
-        datosClasificacion = Object.values(statsTemp).filter(j => j.partidas > 0);
-    }
 
-    let ordenados = datosClasificacion.sort((a, b) => b.puntos - a.puntos);
+        let mostrarPrevio = false;
+        Object.values(statsTemp).forEach(st => {
+            st.previo = st.totalGuardado - st.sumaHistorial;
+            if (st.previo !== 0) mostrarPrevio = true;
+        });
 
-    if(ordenados.length === 0) {
-        bodyClasificacion.innerHTML = `<tr><td colspan="4" style="color:#64748b; font-style:italic; padding: 25px;">No hay batallas registradas en esta vista.</td></tr>`;
-        return;
-    }
+        let theadHTML = `<tr><th>Pos</th><th style="text-align:left;">Jugador</th>`;
+        if (mostrarPrevio) theadHTML += `<th style="color: #94a3b8;" title="Puntos de jornadas antiguas">Base</th>`;
+        jornadasUnicas.forEach(j => { theadHTML += `<th>${j}</th>`; });
+        theadHTML += `<th style="color: var(--primary);">Total</th></tr>`;
+        theadClasificacion.innerHTML = theadHTML;
 
-    bodyClasificacion.innerHTML = ordenados.map((j, i) => {
-        let medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
-        let claseColor = i === 0 ? "oro" : i === 1 ? "plata" : i === 2 ? "bronce" : "";
-        let claseFila = i === 0 ? "rango-1" : i === 1 ? "rango-2" : i === 2 ? "rango-3" : "";
+        datosClasificacion = Object.values(statsTemp).sort((a, b) => b.totalGuardado - a.totalGuardado);
+
+        if(datosClasificacion.length === 0) {
+            bodyClasificacion.innerHTML = `<tr><td colspan="${jornadasUnicas.length + (mostrarPrevio ? 4 : 3)}" style="color:#64748b; font-style:italic; padding: 25px;">No hay jugadores.</td></tr>`;
+            return;
+        }
+
+        // --- SISTEMA DE CORTE A 15 JUGADORES ---
+        let limite = mostrarTodosJugadores ? datosClasificacion.length : 15;
+        let filasHTML = datosClasificacion.slice(0, limite).map((j, i) => {
+            let medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
+            let claseColor = i === 0 ? "oro" : i === 1 ? "plata" : i === 2 ? "bronce" : "";
+            let claseFila = i === 0 ? "rango-1" : i === 1 ? "rango-2" : i === 2 ? "rango-3" : "";
+            
+            let row = `<tr class="${claseFila}">
+                <td style="color:#64748b; font-weight:700;">${i + 1}</td>
+                <td style="text-align: left; font-weight: 600; font-size: 15px; color: white;"><span style="margin-right:12px; font-size:1.2rem;">${medalla}</span> ${j.nombre}</td>`;
+            
+            if (mostrarPrevio) row += `<td style="color:#94a3b8; font-size:13px; font-weight:600;">${j.previo !== 0 ? j.previo : '-'}</td>`;
+
+            jornadasUnicas.forEach(jor => {
+                let pts = j.jornadas[jor];
+                row += `<td style="color:#cbd5e1; font-size:14px;">${pts !== 0 ? pts : '-'}</td>`;
+            });
+
+            row += `<td class="puntos-destacados ${claseColor}" style="font-weight:700; font-size:1.2rem; background: rgba(139, 92, 246, 0.1); border-radius: 0 12px 12px 0;">${j.totalGuardado}</td></tr>`;
+            return row;
+        }).join('');
         
-        return `<tr class="${claseFila}">
-            <td style="color:#64748b; font-weight:700;">${i + 1}</td>
-            <td><span style="margin-right:12px; font-size:1.2rem;">${medalla}</span> ${j.nombre}</td>
-            <td class="puntos-destacados ${claseColor}" style="font-weight:700; font-size:1.2rem;">${j.puntos}</td>
-            <td style="color:#64748b;">${j.partidas} jugadas</td>
-        </tr>`;
-    }).join('');
+        // Agregar botón de "Ver más" si superan los 15
+        if (datosClasificacion.length > 15) {
+            let textBtn = mostrarTodosJugadores ? "Ocultar Jugadores" : `Mostrar los ${datosClasificacion.length - 15} jugadores restantes ▼`;
+            filasHTML += `<tr><td colspan="100%" style="padding:0;"><button class="btn-ver-mas" onclick="toggleMostrarTodos()">${textBtn}</button></td></tr>`;
+        }
+        bodyClasificacion.innerHTML = filasHTML;
+
+    } else {
+        theadClasificacion.innerHTML = `<tr><th>Pos</th><th style="text-align:left;">Jugador</th><th>Puntos</th><th>Partidas</th></tr>`;
+
+        if (modo === 'general') {
+            datosClasificacion = [...jugadores];
+        } else {
+            let statsTemp = {};
+            jugadores.forEach(j => statsTemp[j.id] = { ...j, puntos: 0, partidas: 0 });
+
+            historial.forEach(h => {
+                let fechaPartida = h.fecha.split(',')[0].trim();
+                if (fechaPartida === modo) {
+                    h.resultados.forEach(r => {
+                        if (statsTemp[r.idJugador]) {
+                            statsTemp[r.idJugador].puntos += r.puntos;
+                            if(r.posicion !== "-") { statsTemp[r.idJugador].partidas += 1; }
+                        }
+                    });
+                }
+            });
+            datosClasificacion = Object.values(statsTemp).filter(j => j.puntos !== 0 || j.partidas > 0);
+        }
+
+        let ordenados = datosClasificacion.sort((a, b) => b.puntos - a.puntos);
+
+        if(ordenados.length === 0) {
+            bodyClasificacion.innerHTML = `<tr><td colspan="4" style="color:#64748b; font-style:italic; padding: 25px;">No hay batallas registradas en esta vista.</td></tr>`;
+            return;
+        }
+
+        let limite = mostrarTodosJugadores ? ordenados.length : 15;
+        let filasHTML = ordenados.slice(0, limite).map((j, i) => {
+            let medalla = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
+            let claseColor = i === 0 ? "oro" : i === 1 ? "plata" : i === 2 ? "bronce" : "";
+            let claseFila = i === 0 ? "rango-1" : i === 1 ? "rango-2" : i === 2 ? "rango-3" : "";
+            
+            return `<tr class="${claseFila}">
+                <td style="color:#64748b; font-weight:700;">${i + 1}</td>
+                <td style="text-align: left; font-weight: 600; font-size: 15px; color: white;"><span style="margin-right:12px; font-size:1.2rem;">${medalla}</span> ${j.nombre}</td>
+                <td class="puntos-destacados ${claseColor}" style="font-weight:700; font-size:1.2rem;">${j.puntos}</td>
+                <td style="color:#64748b;">${j.partidas} jugadas</td>
+            </tr>`;
+        }).join('');
+
+        if (ordenados.length > 15) {
+            let textBtn = mostrarTodosJugadores ? "Ocultar Jugadores" : `Mostrar los ${ordenados.length - 15} jugadores restantes ▼`;
+            filasHTML += `<tr><td colspan="100%" style="padding:0;"><button class="btn-ver-mas" onclick="toggleMostrarTodos()">${textBtn}</button></td></tr>`;
+        }
+        bodyClasificacion.innerHTML = filasHTML;
+    }
 }
 
 function actualizarUI() {
@@ -419,6 +550,7 @@ function actualizarUI() {
                 <div style="color: var(--text-muted); font-size: 11px; margin-top: 2px;">${j.puntos} pts | ${j.partidas} partidas</div>
             </div>
             <div style="display: flex; gap: 8px;">
+                <button class="btn-jornada" onclick="anadirPuntosJornada(${j.id})" title="Añadir puntos a una jornada específica">📊 +JORNADA</button>
                 <button class="btn-edit" onclick="editarJugador(${j.id})">✏️ EDITAR</button>
                 <button class="btn-delete" onclick="eliminarJugador(${j.id})">✖</button>
             </div>
@@ -428,6 +560,14 @@ function actualizarUI() {
     document.getElementById('jugadores-presentes').innerHTML = jugadores.map(j => 
         `<label><input type="checkbox" class="check-jugador" value="${j.id}" checked> ${j.nombre}</label>`
     ).join('');
+
+    // Recuperar memoria del contador de jornadas
+    let guardadoJornada = localStorage.getItem('commander_jornada_activa');
+    if(guardadoJornada !== null) {
+        indiceJornadaActual = parseInt(guardadoJornada);
+        if(isNaN(indiceJornadaActual) || indiceJornadaActual >= jornadasLista.length) indiceJornadaActual = 0;
+    }
+    document.getElementById('display-jornada').innerText = jornadasLista[indiceJornadaActual];
 
     actualizarFiltroFechas();
     renderizarClasificacion();
@@ -451,29 +591,23 @@ function actualizarUI() {
         let htmlHistorial = '';
         fechasOrdenadas.forEach((fecha, index) => {
             let openAttr = index === 0 ? 'open' : '';
-            
-            htmlHistorial += `<details class="historial-jornada" ${openAttr}>
-                <summary>📅 Jornada del ${fecha}</summary>
-                <div>`;
-            
+            htmlHistorial += `<details class="historial-jornada" ${openAttr}><summary>📅 Jornada: ${fecha}</summary><div>`;
             gruposPorFecha[fecha].forEach(h => {
                 let hora = h.fecha.split(',')[1] ? h.fecha.split(',')[1].trim() : '';
+                let horaHtml = hora ? `<span class="historial-date">🕒 ${hora}</span>` : '';
                 htmlHistorial += `
                     <div class="historial-item">
-                        <span class="historial-date">🕒 ${hora}</span>
+                        ${horaHtml}
                         <p>${h.resultados.map(r => `<strong style="color:var(--primary);">${r.posicion}º</strong> ${r.nombre} <span style="color:var(--success); font-size:12px;">(+${r.puntos})</span>`).join(' <span style="color:rgba(255,255,255,0.05); margin: 0 5px;">|</span> ')}</p>
                         <div style="text-align:right; margin-top: 5px;">
                             <button class="btn-delete" style="background:transparent; border:1px solid rgba(239, 68, 68, 0.3);" onclick="anularResultado(${h.id})">Anular</button>
                         </div>
                     </div>`;
             });
-
             htmlHistorial += `</div></details>`;
         });
-        
         listaHistorial.innerHTML = htmlHistorial;
     }
 }
 
-// Inicializar la app al cargar
 document.addEventListener("DOMContentLoaded", actualizarUI);
