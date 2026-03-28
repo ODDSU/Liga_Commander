@@ -11,6 +11,7 @@ let mostrarTodosJugadores = false;
 let isModoEdicionExcel = false; 
 const jornadasLista = ['J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'Semifinal', 'Final'];
 let indiceJornadaActual = 0;
+let rondaActual = parseInt(localStorage.getItem('commander_ronda_activa')) || 1;
 
 function cambiarJornada(direccion) {
     indiceJornadaActual += direccion;
@@ -18,6 +19,13 @@ function cambiarJornada(direccion) {
     if (indiceJornadaActual >= jornadasLista.length) indiceJornadaActual = jornadasLista.length - 1;
     document.getElementById('display-jornada').innerText = jornadasLista[indiceJornadaActual];
     localStorage.setItem('commander_jornada_activa', indiceJornadaActual);
+}
+
+function cambiarRonda(direccion) {
+    rondaActual += direccion;
+    if (rondaActual < 1) rondaActual = 1;
+    document.getElementById('display-ronda').innerText = rondaActual;
+    localStorage.setItem('commander_ronda_activa', rondaActual);
 }
 
 function toggleMostrarTodos() {
@@ -69,7 +77,6 @@ function activarEdicionExcel() {
 
 function cancelarEdicionExcel() {
     isModoEdicionExcel = false;
-    
     document.getElementById('modo-clasificacion').style.display = 'block';
     document.getElementById('excel-controls').style.display = 'none';
     document.getElementById('modo-clasificacion').value = 'general'; 
@@ -187,7 +194,7 @@ function eliminarJugador(id) {
     }
 }
 
-// --- ALGORITMO SUIZO CON TIE-BREAKERS ---
+// --- ALGORITMO SUIZO CON TIE-BREAKERS Y OPTIMIZACIÓN DE MESAS DE 4 ---
 function generarMesas(modo = 'aleatorio') {
     const checkboxes = document.querySelectorAll('.check-jugador:checked');
     let presentes = Array.from(checkboxes).map(cb => jugadores.find(j => j.id == cb.value));
@@ -232,17 +239,21 @@ function generarMesas(modo = 'aleatorio') {
         }
     }
 
+    // MATEMÁTICAS ESTRICTAS PARA PRIORIZAR MESAS DE 4
     let mesas_de_4 = Math.floor(P / 4);
     let mesas_de_3 = 0;
     let mesas_de_5 = 0;
     let resto = P % 4;
 
     if (resto === 1) {
-        if (mesas_de_4 === 1) { mesas_de_4 = 0; mesas_de_5 = 1; } 
-        else if (mesas_de_4 === 2) { mesas_de_4 = 0; mesas_de_3 = 3; } 
-        else { mesas_de_4 -= 2; mesas_de_3 += 3; }
-    } else if (resto === 2) { mesas_de_4 -= 1; mesas_de_3 += 2;
-    } else if (resto === 3) { mesas_de_3 += 1; }
+        mesas_de_4 -= 1; // Si somos 9, quitamos una de 4...
+        mesas_de_5 = 1;  // ... y hacemos una de 5 (Total: una de 4, una de 5). ¡Maximiza las de 4!
+    } else if (resto === 2) { 
+        mesas_de_4 -= 1; 
+        mesas_de_3 += 2;
+    } else if (resto === 3) { 
+        mesas_de_3 += 1; 
+    }
 
     let mesas = [];
     let indexJugador = 0;
@@ -263,7 +274,7 @@ function mostrarMesas(mesas, modo = 'aleatorio', puntosHoy = {}) {
         contenedor.innerHTML += `<button class="btn-tv" onclick="abrirModoTV()">📺 PROYECTAR EN TV</button>`;
     }
 
-    let tituloMesa = modo === 'suizo' ? '🏆 Mesa Suizo' : '🔮 Mesa Aleatoria';
+    let tituloMesa = modo === 'suizo' ? `🏆 Ronda ${rondaActual} - Mesa` : `🔮 Ronda ${rondaActual} - Mesa`;
     let colorTitulo = modo === 'suizo' ? '#ef4444' : '#a855f7';
 
     mesas.forEach((mesa, index) => {
@@ -301,7 +312,7 @@ function abrirModoTV() {
     let htmlPods = "";
     ultimasMesasGeneradas.forEach((mesa, index) => {
         let delay = index * 0.15; 
-        htmlPods += `<div class="tv-pod" style="animation-delay: ${delay}s"><h3>MESA ${index + 1}</h3>`;
+        htmlPods += `<div class="tv-pod" style="animation-delay: ${delay}s"><h3>RONDA ${rondaActual} - MESA ${index + 1}</h3>`;
         mesa.forEach(jugador => { htmlPods += `<div class="tv-player"><span class="tv-icon">⚡</span> ${jugador.nombre}</div>`; });
         htmlPods += `</div>`;
     });
@@ -358,7 +369,7 @@ function abrirModoTV() {
 function crearMesaManual() {
     if(jugadores.length < 3) { alert("Añade jugadores primero."); return; }
     const contenedor = document.getElementById('mesas-generadas');
-    let html = `<div class="pod manual" id="manual-${contadorManual}"><h3 style="color:#a855f7;">✍️ Mesa Manual</h3><p style="font-size:13px; color:#94a3b8; margin-top:-10px; margin-bottom: 20px;">Asigna las posiciones libremente.</p>`;
+    let html = `<div class="pod manual" id="manual-${contadorManual}"><h3 style="color:#a855f7;">✍️ Ronda ${rondaActual} - Mesa Manual</h3><p style="font-size:13px; color:#94a3b8; margin-top:-10px; margin-bottom: 20px;">Asigna las posiciones libremente.</p>`;
     for(let i=0; i < 5; i++) {
         let opcional = i >= 3 ? " <span style='font-weight:normal; text-transform:none; color:#64748b;'>(Opcional)</span>" : "";
         html += `<label>${i+1}º PUESTO (+${puntosGlobales[i]} PTS) ${opcional}:</label><select id="sel-manual-${contadorManual}-pos-${i}" onchange="actualizarDesplegables('manual-${contadorManual}', 5)"><option value="">-- Elige un jugador --</option>`;
@@ -421,7 +432,8 @@ function procesarGuardado(detallesMesa, idElemento) {
     });
 
     let nombreJornada = jornadasLista[indiceJornadaActual] || "J1";
-    let fechaGuardado = `${nombreJornada}, ${new Date().toLocaleTimeString()}`;
+    // MAGIA DE GUARDADO: Incluye la Ronda en la cadena del tiempo para no romper las columnas de Excel
+    let fechaGuardado = `${nombreJornada}, Ronda ${rondaActual} • ${new Date().toLocaleTimeString()}`;
 
     historial.unshift({ id: Date.now(), fecha: fechaGuardado, resultados: detallesMesa });
     
@@ -692,6 +704,7 @@ function actualizarUI() {
         if(isNaN(indiceJornadaActual) || indiceJornadaActual >= jornadasLista.length) indiceJornadaActual = 0;
     }
     document.getElementById('display-jornada').innerText = jornadasLista[indiceJornadaActual];
+    document.getElementById('display-ronda').innerText = rondaActual;
 
     actualizarFiltroFechas();
     renderizarClasificacion();
