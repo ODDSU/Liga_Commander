@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -74,7 +73,8 @@
                 </div>
             </div>
 
-            <p class="subtitle">Marca los jugadores presentes para optimizar las mesas:</p>
+            <div id="header-asistencia" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;"></div>
+            
             <div id="jugadores-presentes" class="checkbox-container"></div>
             
             <div style="display: flex; gap: 15px; margin-top: 25px; flex-wrap: wrap;">
@@ -115,13 +115,11 @@
         <summary>💾 SISTEMA DE DATOS</summary>
         <div class="details-content">
             <p class="subtitle">Exporta un archivo de respaldo para no perder el progreso de tu liga.</p>
-            
             <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                 <button class="btn-export" onclick="exportarDatos()">📥 Descargar Copia</button>
                 <button class="btn-import" onclick="document.getElementById('file-import').click()">📤 Cargar Copia</button>
             </div>
             <input type="file" id="file-import" accept=".json" style="display: none;" onchange="importarDatos(event)">
-
             <hr>
             <button class="btn-danger" onclick="reiniciarApp()">⚠️ Borrar Base de Datos</button>
         </div>
