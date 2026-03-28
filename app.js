@@ -195,7 +195,6 @@ function generarMesas(modo = 'aleatorio') {
 
     if (P < 3) { alert("Hacen falta al menos 3 jugadores para formar una mesa de Commander."); return; }
 
-    // 1. Recopilar datos de HOY (Puntos y número de partidas para saber la Ronda)
     let nombreJornada = jornadasLista[indiceJornadaActual];
     let puntosHoy = {};
     let partidasHoy = {}; 
@@ -219,33 +218,26 @@ function generarMesas(modo = 'aleatorio') {
         }
     });
 
-    // CÁLCULO DE LA RONDA: Buscamos quién ha jugado más partidas hoy y le sumamos 1
-    // Si no ha jugado nadie, el Math.max dará 0, por lo que 0 + 1 = 1 (Ronda 1)
     let rondaActual = Math.max(...Object.values(partidasHoy)) + 1;
 
-    // 2. SIEMPRE BARAJAR PRIMERO (Desempate aleatorio)
     for (let i = P - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [presentes[i], presentes[j]] = [presentes[j], presentes[i]];
     }
 
-    // 3. ORDEN SUIZO + DESEMPATE HISTÓRICO + REGLA DE RONDA 1
     if (modo === 'suizo') {
         if (sumatorioPuntosHoy === 0) {
             alert("🎲 Primera ronda detectada: Como nadie tiene puntos aún hoy, las mesas se han generado de forma totalmente aleatoria (ignorando el Suizo).");
         } else {
             presentes.sort((a, b) => {
-                // Criterio 1: Puntos de HOY
                 if (puntosHoy[b.id] !== puntosHoy[a.id]) {
                     return puntosHoy[b.id] - puntosHoy[a.id];
                 }
-                // Criterio 2: Puntos TOTALES (Historial general de la liga)
                 return b.puntos - a.puntos;
             });
         }
     }
 
-    // --- MATEMÁTICAS DE LAS MESAS ---
     let mesas_de_4 = Math.floor(P / 4);
     let mesas_de_3 = 0;
     let mesas_de_5 = 0;
@@ -284,7 +276,6 @@ function mostrarMesas(mesas, modo = 'aleatorio', puntosHoy = {}, rondaActual = 1
         let html = `<div class="pod" id="pod-${index}">
             <h3 style="color: ${colorTitulo}; margin-bottom: 5px;">${tituloMesa} ${index + 1} <span style="font-size:12px; color:#94a3b8; font-weight:normal;">(${mesa.length} Jugadores)</span></h3>`;
         
-        // Chivato visual de puntos para el organizador
         const nombresMesa = mesa.map(j => {
             let textoPuntos = modo === 'suizo' ? ` <span style="color:#fcd34d; font-size:11px; font-weight:normal;">(${puntosHoy[j.id]}p hoy | ${j.puntos}p gen)</span>` : '';
             return `${j.nombre}${textoPuntos}`;
@@ -583,7 +574,9 @@ function renderizarClasificacion() {
         });
 
         let theadHTML = `<tr><th>Pos</th><th style="text-align:left;">Jugador</th>`;
-        if (mostrarPrevio || isModoEdicionExcel) theadHTML += `<th style="color: #94a3b8;" title="Puntos de jornadas antiguas">Base</th>`;
+        if (mostrarPrevio || isModoEdicionExcel) {
+            theadHTML += `<th style="color: #94a3b8;" title="Puntos de jornadas antiguas">Base</th>`;
+        }
         jornadasUnicas.forEach(j => { theadHTML += `<th>${j}</th>`; });
         theadHTML += `<th style="color: var(--primary);">Total</th></tr>`;
         theadClasificacion.innerHTML = theadHTML;
@@ -697,9 +690,14 @@ function actualizarUI() {
         </li>`
     ).join('');
 
-    document.getElementById('jugadores-presentes').innerHTML = jugadores.map(j => 
-        `<label><input type="checkbox" class="check-jugador" value="${j.id}" checked> ${j.nombre}</label>`
-    ).join('');
+    // --- MAGIA AÑADIDA: Guardar selecciones previas para que no se marquen todos de golpe ---
+    const checkboxesActivos = document.querySelectorAll('.check-jugador:checked');
+    const idsActivos = new Set(Array.from(checkboxesActivos).map(cb => parseInt(cb.value)));
+
+    document.getElementById('jugadores-presentes').innerHTML = jugadores.map(j => {
+        let marcado = idsActivos.has(j.id) ? 'checked' : '';
+        return `<label><input type="checkbox" class="check-jugador" value="${j.id}" ${marcado}> ${j.nombre}</label>`;
+    }).join('');
 
     let guardadoJornada = localStorage.getItem('commander_jornada_activa');
     if(guardadoJornada !== null) {
