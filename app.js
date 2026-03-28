@@ -750,4 +750,3 @@ function actualizarUI() {
 }
 
 document.addEventListener("DOMContentLoaded", actualizarUI);
-
