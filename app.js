@@ -21,7 +21,6 @@ function cambiarJornada(direccion) {
     document.getElementById('display-jornada').innerText = jornadasLista[indiceJornadaActual];
     localStorage.setItem('commander_jornada_activa', indiceJornadaActual);
     
-    // Al cambiar de jornada, limpiamos los checkboxes manualmente para la nueva jornada
     document.querySelectorAll('.check-jugador').forEach(cb => cb.checked = false);
     actualizarUI(); 
 }
@@ -72,14 +71,11 @@ function agregarJugador() {
 function desbloquearAsistencia() {
     if(confirm("¿Seguro que quieres modificar la asistencia? Si añades jugadores nuevos en mitad de la jornada, empezarán con 0 puntos hoy.")) {
         let nombreJornada = jornadasLista[indiceJornadaActual];
-        
-        // Antes de desbloquear, recuperamos quién estaba para dejarlos marcados y que sea más fácil editar
         let idsPrevios = asistentesPorJornada[nombreJornada] || [];
         
         delete asistentesPorJornada[nombreJornada];
         localStorage.setItem('commander_asistentes_jornada', JSON.stringify(asistentesPorJornada));
         
-        // Forzamos que se redibuje la UI pasándole los IDs que estaban bloqueados para que se queden tickados
         actualizarUI(idsPrevios);
     }
 }
@@ -160,11 +156,12 @@ function eliminarJugador(id) {
     }
 }
 
+// --- GENERADOR DE MESAS (CON CERROJO MATEMÁTICO) ---
 function generarMesas(modo = 'aleatorio') {
     let nombreJornada = jornadasLista[indiceJornadaActual];
     let presentes = [];
 
-    // 1. GESTIÓN DEL CANDADO DE ASISTENCIA
+    // 1. CANDADO DE ASISTENCIA
     if (!asistentesPorJornada[nombreJornada]) {
         const checkboxes = document.querySelectorAll('.check-jugador:checked');
         let idsPresentes = Array.from(checkboxes).map(cb => parseInt(cb.value));
@@ -206,6 +203,7 @@ function generarMesas(modo = 'aleatorio') {
         }
     });
 
+    // Desempate aleatorio SIEMPRE
     for (let i = presentes.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [presentes[i], presentes[j]] = [presentes[j], presentes[i]];
@@ -222,20 +220,29 @@ function generarMesas(modo = 'aleatorio') {
         }
     }
 
+    // 4. MATEMÁTICAS ESTRICTAS BLINDADAS
     let P = presentes.length;
-    let mesas_de_4 = Math.floor(P / 4);
+    let mesas_de_4 = 0;
     let mesas_de_3 = 0;
     let mesas_de_5 = 0;
-    let resto = P % 4;
 
-    if (resto === 1) {
-        mesas_de_4 -= 1; 
-        mesas_de_5 = 1;  
-    } else if (resto === 2) { 
-        mesas_de_4 -= 1; 
-        mesas_de_3 += 2;
-    } else if (resto === 3) { 
-        mesas_de_3 += 1; 
+    if (P % 4 === 0) {
+        // CERROJO: Si sois 12, 16, 20... Cero dudas. Todo mesas de 4.
+        mesas_de_4 = P / 4;
+    } else {
+        // Cálculo si no somos múltiplos exactos de 4
+        mesas_de_4 = Math.floor(P / 4);
+        let resto = P % 4;
+
+        if (resto === 1) {
+            mesas_de_4 -= 1; 
+            mesas_de_5 = 1;  
+        } else if (resto === 2) { 
+            mesas_de_4 -= 1; 
+            mesas_de_3 += 2;
+        } else if (resto === 3) { 
+            mesas_de_3 += 1; 
+        }
     }
 
     let mesas = [];
@@ -486,7 +493,6 @@ function reiniciarApp() {
 
 function actualizarFiltroFechas() {
     const select = document.getElementById('modo-clasificacion');
-    
     if (isModoEdicionExcel) return; 
 
     const valorActual = select.value;
@@ -668,7 +674,6 @@ function renderizarClasificacion() {
     }
 }
 
-// NUEVA FUNCIÓN MEJORADA QUE RECUERDA LOS CHECKS ANTES DE REDIBUJAR
 function actualizarUI(forzarChecks = null) {
     document.getElementById('lista-jugadores').innerHTML = jugadores.map(j => 
         `<li>
@@ -694,9 +699,8 @@ function actualizarUI(forzarChecks = null) {
         headerAsistencia.innerHTML = `<p class="subtitle" style="margin:0;">Marca los jugadores que asisten a la ${nombreJornada}:</p>`;
     }
 
-    // MEMORIA: Guardamos los checkboxes que el usuario ha tocado antes de que JS los borre
     let checksGuardados = Array.from(document.querySelectorAll('.check-jugador:checked')).map(cb => parseInt(cb.value));
-    if (forzarChecks) checksGuardados = forzarChecks; // Si venimos de darle al candado, respetamos los que estaban
+    if (forzarChecks) checksGuardados = forzarChecks; 
 
     document.getElementById('jugadores-presentes').innerHTML = jugadores.map(j => {
         if (bloqueados) {
@@ -705,7 +709,6 @@ function actualizarUI(forzarChecks = null) {
             let opacity = bloqueados.includes(j.id) ? '1' : '0.3';
             return `<label style="opacity: ${opacity}; cursor: not-allowed;"><input type="checkbox" class="check-jugador" value="${j.id}" ${isChecked} ${isDisabled}> ${j.nombre}</label>`;
         } else {
-            // Si el jugador estaba checkeado, lo mantenemos. Si no, lo dejamos desmarcado por defecto.
             let isChecked = checksGuardados.includes(j.id) ? 'checked' : '';
             return `<label><input type="checkbox" class="check-jugador" value="${j.id}" ${isChecked}> ${j.nombre}</label>`;
         }
