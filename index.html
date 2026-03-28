@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -53,15 +54,24 @@
         <summary>🎲 GENERADOR DE JORNADAS</summary>
         <div class="details-content">
             
-            <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2); padding: 20px; border-radius: 16px; margin-bottom: 25px;">
-                <label style="font-size: 12px; color: var(--primary); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px;">🏷️ Selecciona la Jornada Actual:</label>
-                
-                <div class="jornada-counter">
-                    <button class="btn-counter" onclick="cambiarJornada(-1)">-</button>
-                    <span id="display-jornada" style="font-size: 1.5rem; font-weight: 900; color: var(--accent); min-width: 100px; text-align: center; letter-spacing: 2px;">J1</span>
-                    <button class="btn-counter" onclick="cambiarJornada(1)">+</button>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 25px;">
+                <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2); padding: 15px; border-radius: 16px; flex: 1; min-width: 200px;">
+                    <label style="font-size: 11px; color: var(--primary); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px;">🏷️ Jornada Actual:</label>
+                    <div class="jornada-counter">
+                        <button class="btn-counter" onclick="cambiarJornada(-1)">-</button>
+                        <span id="display-jornada" style="font-size: 1.5rem; font-weight: 900; color: var(--accent); min-width: 60px; text-align: center; letter-spacing: 1px;">J1</span>
+                        <button class="btn-counter" onclick="cambiarJornada(1)">+</button>
+                    </div>
                 </div>
-                <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px; margin-bottom: 0;">Los resultados se guardarán automáticamente bajo esta etiqueta y el Suizo la usará para los cálculos.</p>
+
+                <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); padding: 15px; border-radius: 16px; flex: 1; min-width: 200px;">
+                    <label style="font-size: 11px; color: var(--danger); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px;">⏱️ Ronda Actual:</label>
+                    <div class="jornada-counter" style="border-color: rgba(239, 68, 68, 0.3);">
+                        <button class="btn-counter" style="background: rgba(239, 68, 68, 0.2);" onclick="cambiarRonda(-1)">-</button>
+                        <span id="display-ronda" style="font-size: 1.5rem; font-weight: 900; color: #fca5a5; min-width: 60px; text-align: center;">1</span>
+                        <button class="btn-counter" style="background: rgba(239, 68, 68, 0.2);" onclick="cambiarRonda(1)">+</button>
+                    </div>
+                </div>
             </div>
 
             <p class="subtitle">Marca los jugadores presentes para optimizar las mesas:</p>
