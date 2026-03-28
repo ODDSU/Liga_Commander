@@ -1,7 +1,5 @@
 let jugadores = JSON.parse(localStorage.getItem('commander_jugadores')) || [];
 let historial = JSON.parse(localStorage.getItem('commander_historial')) || [];
-let asistentesPorJornada = JSON.parse(localStorage.getItem('commander_asistentes_jornada')) || {};
-
 let contadorManual = 0; 
 const puntosGlobales = [4, 3, 2, 1, 0]; 
 
@@ -12,7 +10,6 @@ let mostrarTodosJugadores = false;
 let isModoEdicionExcel = false; 
 const jornadasLista = ['J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8', 'Semifinal', 'Final'];
 let indiceJornadaActual = 0;
-let rondaActual = parseInt(localStorage.getItem('commander_ronda_activa')) || 1;
 
 function cambiarJornada(direccion) {
     indiceJornadaActual += direccion;
@@ -20,17 +17,6 @@ function cambiarJornada(direccion) {
     if (indiceJornadaActual >= jornadasLista.length) indiceJornadaActual = jornadasLista.length - 1;
     document.getElementById('display-jornada').innerText = jornadasLista[indiceJornadaActual];
     localStorage.setItem('commander_jornada_activa', indiceJornadaActual);
-    
-    document.querySelectorAll('.check-jugador').forEach(cb => cb.checked = false);
-    actualizarUI(); 
-}
-
-function cambiarRonda(direccion) {
-    rondaActual += direccion;
-    if (rondaActual < 1) rondaActual = 1;
-    document.getElementById('display-ronda').innerText = rondaActual;
-    localStorage.setItem('commander_ronda_activa', rondaActual);
-    actualizarUI();
 }
 
 function toggleMostrarTodos() {
@@ -68,32 +54,25 @@ function agregarJugador() {
     }
 }
 
-function desbloquearAsistencia() {
-    if(confirm("¿Seguro que quieres modificar la asistencia? Si añades jugadores nuevos en mitad de la jornada, empezarán con 0 puntos hoy.")) {
-        let nombreJornada = jornadasLista[indiceJornadaActual];
-        let idsPrevios = asistentesPorJornada[nombreJornada] || [];
-        
-        delete asistentesPorJornada[nombreJornada];
-        localStorage.setItem('commander_asistentes_jornada', JSON.stringify(asistentesPorJornada));
-        
-        actualizarUI(idsPrevios);
-    }
-}
-
+// --- LÓGICA DE EDICIÓN MODO EXCEL ---
 function activarEdicionExcel() {
     isModoEdicionExcel = true;
     mostrarTodosJugadores = true; 
+    
     document.getElementById('modo-clasificacion').style.display = 'none';
     document.getElementById('excel-controls').style.display = 'flex';
+    
     document.getElementById('tarjeta-clasificacion').scrollIntoView({ behavior: 'smooth' });
     renderizarClasificacion();
 }
 
 function cancelarEdicionExcel() {
     isModoEdicionExcel = false;
+    
     document.getElementById('modo-clasificacion').style.display = 'block';
     document.getElementById('excel-controls').style.display = 'none';
-    document.getElementById('modo-clasificacion').value = 'general'; 
+    
+    document.getElementById('modo-clasificacion').value = 'general';
     actualizarUI();
 }
 
@@ -149,6 +128,58 @@ function guardarEdicionExcel() {
     actualizarUI();
 }
 
+function anadirPuntosJornada(id) {
+    let jugador = jugadores.find(j => j.id === id);
+    if (!jugador) return;
+
+    let jornadaSugerida = jornadasLista[indiceJornadaActual];
+
+    let nombreJornada = prompt(`Añadir registro a ${jugador.nombre}\n\nIntroduce el identificador de la Jornada\n(Ejemplo: J1, J2, Semifinal...):`, jornadaSugerida);
+    if (!nombreJornada || nombreJornada.trim() === "") return;
+
+    let puntosStr = prompt(`¿Cuántos puntos consiguió ${jugador.nombre} en "${nombreJornada}"?`);
+    if (puntosStr === null) return;
+
+    let puntos = parseInt(puntosStr);
+    if (isNaN(puntos)) {
+        alert("❌ Por favor, introduce un número válido.");
+        return;
+    }
+
+    jugador.puntos += puntos;
+    jugador.partidas += 1;
+
+    historial.unshift({
+        id: Date.now() + Math.floor(Math.random() * 1000), 
+        fecha: nombreJornada.trim(),
+        resultados: [{ idJugador: jugador.id, nombre: jugador.nombre, puntos: puntos, posicion: "-" }]
+    });
+
+    guardarDatos();
+}
+
+function editarJugador(id) {
+    let jugador = jugadores.find(j => j.id === id);
+    if (!jugador) return;
+
+    let nuevosPuntos = prompt(`Modificar PUNTOS TOTALES de ${jugador.nombre}\n\nPuntos actuales: ${jugador.puntos}\nIntroduce los nuevos puntos:`, jugador.puntos);
+    if (nuevosPuntos === null) return; 
+
+    let nuevasPartidas = prompt(`Modificar PARTIDAS JUGADAS de ${jugador.nombre}\n\nPartidas actuales: ${jugador.partidas}\nIntroduce las nuevas partidas:`, jugador.partidas);
+    if (nuevasPartidas === null) return; 
+
+    nuevosPuntos = parseInt(nuevosPuntos);
+    nuevasPartidas = parseInt(nuevasPartidas);
+
+    if (!isNaN(nuevosPuntos) && !isNaN(nuevasPartidas)) {
+        jugador.puntos = nuevosPuntos;
+        jugador.partidas = nuevasPartidas;
+        guardarDatos();
+    } else {
+        alert("❌ Por favor, introduce solo números válidos.");
+    }
+}
+
 function eliminarJugador(id) {
     if(confirm("¿Seguro que quieres borrar a este jugador? Se perderán sus puntos.")) {
         jugadores = jugadores.filter(j => j.id !== id);
@@ -156,40 +187,24 @@ function eliminarJugador(id) {
     }
 }
 
-// --- GENERADOR DE MESAS (CON CERROJO MATEMÁTICO) ---
+// --- ALGORITMO INTELIGENTE DE MESAS Y SUIZO ---
 function generarMesas(modo = 'aleatorio') {
+    const checkboxes = document.querySelectorAll('.check-jugador:checked');
+    let presentes = Array.from(checkboxes).map(cb => jugadores.find(j => j.id == cb.value));
+    const P = presentes.length;
+
+    if (P < 3) { alert("Hacen falta al menos 3 jugadores para formar una mesa de Commander."); return; }
+
+    // 1. Recopilar datos de HOY (Puntos y número de partidas para saber la Ronda)
     let nombreJornada = jornadasLista[indiceJornadaActual];
-    let presentes = [];
-
-    // 1. CANDADO DE ASISTENCIA
-    if (!asistentesPorJornada[nombreJornada]) {
-        const checkboxes = document.querySelectorAll('.check-jugador:checked');
-        let idsPresentes = Array.from(checkboxes).map(cb => parseInt(cb.value));
-        
-        if (idsPresentes.length < 3) { 
-            alert("Hacen falta al menos 3 jugadores marcados para formar una mesa."); 
-            return; 
-        }
-        
-        asistentesPorJornada[nombreJornada] = idsPresentes;
-        localStorage.setItem('commander_asistentes_jornada', JSON.stringify(asistentesPorJornada));
-        actualizarUI(); 
-    }
-
-    let idsBloqueados = asistentesPorJornada[nombreJornada];
-    presentes = idsBloqueados.map(id => jugadores.find(j => j.id === id)).filter(j => j !== undefined);
-
-    if (presentes.length < 3) { alert("Error: No hay suficientes jugadores en la asistencia."); return; }
-
-    // 2. AUTO-INCREMENTO DE LA RONDA SI ES SUIZO
-    if (modo === 'suizo') {
-        cambiarRonda(1); 
-    }
-
-    // 3. RECABAR PUNTOS DE HOY
     let puntosHoy = {};
+    let partidasHoy = {}; 
     let sumatorioPuntosHoy = 0; 
-    presentes.forEach(j => puntosHoy[j.id] = 0);
+
+    presentes.forEach(j => {
+        puntosHoy[j.id] = 0;
+        partidasHoy[j.id] = 0;
+    });
     
     historial.forEach(h => {
         let fechaPartida = h.fecha.split(',')[0].trim();
@@ -197,53 +212,51 @@ function generarMesas(modo = 'aleatorio') {
             h.resultados.forEach(r => {
                 if (puntosHoy[r.idJugador] !== undefined) {
                     puntosHoy[r.idJugador] += r.puntos;
+                    partidasHoy[r.idJugador] += 1; 
                     sumatorioPuntosHoy += r.puntos;
                 }
             });
         }
     });
 
-    // Desempate aleatorio SIEMPRE
-    for (let i = presentes.length - 1; i > 0; i--) {
+    // CÁLCULO DE LA RONDA: Buscamos quién ha jugado más partidas hoy y le sumamos 1
+    // Si no ha jugado nadie, el Math.max dará 0, por lo que 0 + 1 = 1 (Ronda 1)
+    let rondaActual = Math.max(...Object.values(partidasHoy)) + 1;
+
+    // 2. SIEMPRE BARAJAR PRIMERO (Desempate aleatorio)
+    for (let i = P - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [presentes[i], presentes[j]] = [presentes[j], presentes[i]];
     }
 
+    // 3. ORDEN SUIZO + DESEMPATE HISTÓRICO + REGLA DE RONDA 1
     if (modo === 'suizo') {
         if (sumatorioPuntosHoy === 0) {
             alert("🎲 Primera ronda detectada: Como nadie tiene puntos aún hoy, las mesas se han generado de forma totalmente aleatoria (ignorando el Suizo).");
         } else {
             presentes.sort((a, b) => {
-                if (puntosHoy[b.id] !== puntosHoy[a.id]) return puntosHoy[b.id] - puntosHoy[a.id];
+                // Criterio 1: Puntos de HOY
+                if (puntosHoy[b.id] !== puntosHoy[a.id]) {
+                    return puntosHoy[b.id] - puntosHoy[a.id];
+                }
+                // Criterio 2: Puntos TOTALES (Historial general de la liga)
                 return b.puntos - a.puntos;
             });
         }
     }
 
-    // 4. MATEMÁTICAS ESTRICTAS BLINDADAS
-    let P = presentes.length;
-    let mesas_de_4 = 0;
+    // --- MATEMÁTICAS DE LAS MESAS ---
+    let mesas_de_4 = Math.floor(P / 4);
     let mesas_de_3 = 0;
     let mesas_de_5 = 0;
+    let resto = P % 4;
 
-    if (P % 4 === 0) {
-        // CERROJO: Si sois 12, 16, 20... Cero dudas. Todo mesas de 4.
-        mesas_de_4 = P / 4;
-    } else {
-        // Cálculo si no somos múltiplos exactos de 4
-        mesas_de_4 = Math.floor(P / 4);
-        let resto = P % 4;
-
-        if (resto === 1) {
-            mesas_de_4 -= 1; 
-            mesas_de_5 = 1;  
-        } else if (resto === 2) { 
-            mesas_de_4 -= 1; 
-            mesas_de_3 += 2;
-        } else if (resto === 3) { 
-            mesas_de_3 += 1; 
-        }
-    }
+    if (resto === 1) {
+        if (mesas_de_4 === 1) { mesas_de_4 = 0; mesas_de_5 = 1; } 
+        else if (mesas_de_4 === 2) { mesas_de_4 = 0; mesas_de_3 = 3; } 
+        else { mesas_de_4 -= 2; mesas_de_3 += 3; }
+    } else if (resto === 2) { mesas_de_4 -= 1; mesas_de_3 += 2;
+    } else if (resto === 3) { mesas_de_3 += 1; }
 
     let mesas = [];
     let indexJugador = 0;
@@ -253,10 +266,10 @@ function generarMesas(modo = 'aleatorio') {
     for (let i = 0; i < mesas_de_5; i++) { mesas.push(presentes.slice(indexJugador, indexJugador + 5)); indexJugador += 5; }
 
     ultimasMesasGeneradas = mesas;
-    mostrarMesas(mesas, modo, puntosHoy);
+    mostrarMesas(mesas, modo, puntosHoy, rondaActual);
 }
 
-function mostrarMesas(mesas, modo = 'aleatorio', puntosHoy = {}) {
+function mostrarMesas(mesas, modo = 'aleatorio', puntosHoy = {}, rondaActual = 1) {
     const contenedor = document.getElementById('mesas-generadas');
     contenedor.innerHTML = '';
 
@@ -264,13 +277,14 @@ function mostrarMesas(mesas, modo = 'aleatorio', puntosHoy = {}) {
         contenedor.innerHTML += `<button class="btn-tv" onclick="abrirModoTV()">📺 PROYECTAR EN TV</button>`;
     }
 
-    let tituloMesa = modo === 'suizo' ? `🏆 Ronda ${rondaActual} - Mesa` : `🔮 Ronda ${rondaActual} - Mesa`;
+    let tituloMesa = modo === 'suizo' ? `🏆 Suizo (Ronda ${rondaActual}) - Mesa` : `🔮 Aleatorio (Ronda ${rondaActual}) - Mesa`;
     let colorTitulo = modo === 'suizo' ? '#ef4444' : '#a855f7';
 
     mesas.forEach((mesa, index) => {
         let html = `<div class="pod" id="pod-${index}">
             <h3 style="color: ${colorTitulo}; margin-bottom: 5px;">${tituloMesa} ${index + 1} <span style="font-size:12px; color:#94a3b8; font-weight:normal;">(${mesa.length} Jugadores)</span></h3>`;
         
+        // Chivato visual de puntos para el organizador
         const nombresMesa = mesa.map(j => {
             let textoPuntos = modo === 'suizo' ? ` <span style="color:#fcd34d; font-size:11px; font-weight:normal;">(${puntosHoy[j.id]}p hoy | ${j.puntos}p gen)</span>` : '';
             return `${j.nombre}${textoPuntos}`;
@@ -302,7 +316,7 @@ function abrirModoTV() {
     let htmlPods = "";
     ultimasMesasGeneradas.forEach((mesa, index) => {
         let delay = index * 0.15; 
-        htmlPods += `<div class="tv-pod" style="animation-delay: ${delay}s"><h3>RONDA ${rondaActual} - MESA ${index + 1}</h3>`;
+        htmlPods += `<div class="tv-pod" style="animation-delay: ${delay}s"><h3>MESA ${index + 1}</h3>`;
         mesa.forEach(jugador => { htmlPods += `<div class="tv-player"><span class="tv-icon">⚡</span> ${jugador.nombre}</div>`; });
         htmlPods += `</div>`;
     });
@@ -359,7 +373,7 @@ function abrirModoTV() {
 function crearMesaManual() {
     if(jugadores.length < 3) { alert("Añade jugadores primero."); return; }
     const contenedor = document.getElementById('mesas-generadas');
-    let html = `<div class="pod manual" id="manual-${contadorManual}"><h3 style="color:#a855f7;">✍️ Ronda ${rondaActual} - Mesa Manual</h3><p style="font-size:13px; color:#94a3b8; margin-top:-10px; margin-bottom: 20px;">Asigna las posiciones libremente.</p>`;
+    let html = `<div class="pod manual" id="manual-${contadorManual}"><h3 style="color:#a855f7;">✍️ Mesa Manual</h3><p style="font-size:13px; color:#94a3b8; margin-top:-10px; margin-bottom: 20px;">Asigna las posiciones libremente.</p>`;
     for(let i=0; i < 5; i++) {
         let opcional = i >= 3 ? " <span style='font-weight:normal; text-transform:none; color:#64748b;'>(Opcional)</span>" : "";
         html += `<label>${i+1}º PUESTO (+${puntosGlobales[i]} PTS) ${opcional}:</label><select id="sel-manual-${contadorManual}-pos-${i}" onchange="actualizarDesplegables('manual-${contadorManual}', 5)"><option value="">-- Elige un jugador --</option>`;
@@ -422,7 +436,7 @@ function procesarGuardado(detallesMesa, idElemento) {
     });
 
     let nombreJornada = jornadasLista[indiceJornadaActual] || "J1";
-    let fechaGuardado = `${nombreJornada}, Ronda ${rondaActual} • ${new Date().toLocaleTimeString()}`;
+    let fechaGuardado = `${nombreJornada}, ${new Date().toLocaleTimeString()}`;
 
     historial.unshift({ id: Date.now(), fecha: fechaGuardado, resultados: detallesMesa });
     
@@ -452,7 +466,7 @@ function anularResultado(idHistorial) {
 }
 
 function exportarDatos() {
-    const blob = new Blob([JSON.stringify({ jugadores, historial, asistentesPorJornada }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ jugadores, historial }, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `Liga_Commander_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
@@ -469,7 +483,6 @@ function importarDatos(event) {
             if (datos.jugadores && datos.historial && confirm("⚠️ Esto sobreescribirá los datos actuales. ¿Continuar?")) {
                 jugadores = datos.jugadores;
                 historial = datos.historial;
-                if(datos.asistentesPorJornada) asistentesPorJornada = datos.asistentesPorJornada;
                 guardarDatos(); 
             }
         } catch (error) { alert("❌ Archivo no válido."); }
@@ -480,12 +493,9 @@ function importarDatos(event) {
 
 function reiniciarApp() {
     if (prompt("Escribe BORRAR para eliminar todo:") === "BORRAR") {
-        jugadores = []; 
-        historial = [];
-        asistentesPorJornada = {};
+        jugadores = []; historial = [];
         localStorage.removeItem('commander_jugadores');
         localStorage.removeItem('commander_historial');
-        localStorage.removeItem('commander_asistentes_jornada');
         document.getElementById('mesas-generadas').innerHTML = '';
         actualizarUI();
     }
@@ -493,6 +503,7 @@ function reiniciarApp() {
 
 function actualizarFiltroFechas() {
     const select = document.getElementById('modo-clasificacion');
+    
     if (isModoEdicionExcel) return; 
 
     const valorActual = select.value;
@@ -674,7 +685,7 @@ function renderizarClasificacion() {
     }
 }
 
-function actualizarUI(forzarChecks = null) {
+function actualizarUI() {
     document.getElementById('lista-jugadores').innerHTML = jugadores.map(j => 
         `<li>
             <div>
@@ -686,33 +697,9 @@ function actualizarUI(forzarChecks = null) {
         </li>`
     ).join('');
 
-    let nombreJornada = jornadasLista[indiceJornadaActual];
-    let bloqueados = asistentesPorJornada[nombreJornada];
-    let headerAsistencia = document.getElementById('header-asistencia');
-    
-    if (bloqueados) {
-        headerAsistencia.innerHTML = `
-            <p class="subtitle" style="margin:0;">🔒 Asistencia bloqueada para ${nombreJornada}:</p>
-            <button onclick="desbloquearAsistencia()" style="background:transparent; border:1px solid var(--danger); color:#fca5a5; padding:6px 10px; font-size:11px; border-radius:8px; cursor:pointer; font-weight:bold;">🔓 Modificar Asistencia</button>
-        `;
-    } else {
-        headerAsistencia.innerHTML = `<p class="subtitle" style="margin:0;">Marca los jugadores que asisten a la ${nombreJornada}:</p>`;
-    }
-
-    let checksGuardados = Array.from(document.querySelectorAll('.check-jugador:checked')).map(cb => parseInt(cb.value));
-    if (forzarChecks) checksGuardados = forzarChecks; 
-
-    document.getElementById('jugadores-presentes').innerHTML = jugadores.map(j => {
-        if (bloqueados) {
-            let isChecked = bloqueados.includes(j.id) ? 'checked' : '';
-            let isDisabled = 'disabled';
-            let opacity = bloqueados.includes(j.id) ? '1' : '0.3';
-            return `<label style="opacity: ${opacity}; cursor: not-allowed;"><input type="checkbox" class="check-jugador" value="${j.id}" ${isChecked} ${isDisabled}> ${j.nombre}</label>`;
-        } else {
-            let isChecked = checksGuardados.includes(j.id) ? 'checked' : '';
-            return `<label><input type="checkbox" class="check-jugador" value="${j.id}" ${isChecked}> ${j.nombre}</label>`;
-        }
-    }).join('');
+    document.getElementById('jugadores-presentes').innerHTML = jugadores.map(j => 
+        `<label><input type="checkbox" class="check-jugador" value="${j.id}" checked> ${j.nombre}</label>`
+    ).join('');
 
     let guardadoJornada = localStorage.getItem('commander_jornada_activa');
     if(guardadoJornada !== null) {
@@ -720,7 +707,6 @@ function actualizarUI(forzarChecks = null) {
         if(isNaN(indiceJornadaActual) || indiceJornadaActual >= jornadasLista.length) indiceJornadaActual = 0;
     }
     document.getElementById('display-jornada').innerText = jornadasLista[indiceJornadaActual];
-    document.getElementById('display-ronda').innerText = rondaActual;
 
     actualizarFiltroFechas();
     renderizarClasificacion();
@@ -746,17 +732,12 @@ function actualizarUI(forzarChecks = null) {
             let openAttr = index === 0 ? 'open' : '';
             htmlHistorial += `<details class="historial-jornada" ${openAttr}><summary>📅 Jornada: ${fecha}</summary><div>`;
             gruposPorFecha[fecha].forEach(h => {
-                let trozos = h.fecha.split('•');
-                let infoExtra = trozos[0].includes('Ronda') ? trozos[0].split(',')[1].trim() : ''; 
-                let hora = trozos[1] ? trozos[1].trim() : (h.fecha.split(',')[1] ? h.fecha.split(',')[1].trim() : '');
-                
-                let tagRonda = infoExtra ? `<span style="background:rgba(239, 68, 68, 0.2); color:#fca5a5; padding:2px 6px; border-radius:4px; margin-right:8px; font-weight:bold;">${infoExtra}</span>` : '';
-                let horaHtml = hora ? `<span class="historial-date">${tagRonda}🕒 ${hora}</span>` : '';
-                
+                let hora = h.fecha.split(',')[1] ? h.fecha.split(',')[1].trim() : '';
+                let horaHtml = hora ? `<span class="historial-date">🕒 ${hora}</span>` : '';
                 htmlHistorial += `
                     <div class="historial-item">
                         ${horaHtml}
-                        <p style="margin-top: 8px;">${h.resultados.map(r => `<strong style="color:var(--primary);">${r.posicion}º</strong> ${r.nombre} <span style="color:var(--success); font-size:12px;">(+${r.puntos})</span>`).join(' <span style="color:rgba(255,255,255,0.05); margin: 0 5px;">|</span> ')}</p>
+                        <p>${h.resultados.map(r => `<strong style="color:var(--primary);">${r.posicion}º</strong> ${r.nombre} <span style="color:var(--success); font-size:12px;">(+${r.puntos})</span>`).join(' <span style="color:rgba(255,255,255,0.05); margin: 0 5px;">|</span> ')}</p>
                         <div style="text-align:right; margin-top: 5px;">
                             <button class="btn-delete" style="background:transparent; border:1px solid rgba(239, 68, 68, 0.3);" onclick="anularResultado(${h.id})">Anular</button>
                         </div>
