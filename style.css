@@ -72,14 +72,14 @@ h2 { font-size: 1.4rem; margin-top: 0; margin-bottom: 20px; font-weight: 600; di
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
 
-/* --- PANTALLA COMPLETA AUTO-AJUSTABLE --- */
+/* --- PANTALLA COMPLETA: MÁXIMA CAPACIDAD --- */
 .fullscreen-card {
     position: fixed !important;
     top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
     width: 100vw !important; height: 100vh !important;
     z-index: 99999 !important; margin: 0 !important; border-radius: 0 !important;
     max-width: none !important; 
-    overflow-y: auto !important; 
+    overflow-y: auto !important; /* Scroll reactivado */
     background: #09090e !important;
     padding: 2vh 2vw !important; 
     box-sizing: border-box;
@@ -87,12 +87,18 @@ h2 { font-size: 1.4rem; margin-top: 0; margin-bottom: 20px; font-weight: 600; di
     flex-direction: column !important;
 }
 
+/* Ocultamos la barra de scroll visualmente */
 .fullscreen-card::-webkit-scrollbar { display: none !important; }
 
-.fullscreen-card > * { max-width: 95% !important; margin-left: auto !important; margin-right: auto !important; }
+.fullscreen-card > * {
+    max-width: 95% !important; 
+    margin-left: auto !important; 
+    margin-right: auto !important;
+}
 
 .fullscreen-card h2 { font-size: 2.5vh !important; margin-bottom: 0.5vh !important; }
 .fullscreen-card select#modo-clasificacion { font-size: 1.8vh !important; padding: 0.5vh !important; margin-bottom: 1vh !important; }
+
 .fullscreen-card div[style*="overflow-x"] { flex-grow: 1; width: 100%; }
 .fullscreen-card table { margin-top: 0; border-spacing: 0 0.2vh !important; width: 100%; }
 
@@ -139,8 +145,11 @@ button:active { transform: translateY(1px); }
 .btn-edit:hover { background: var(--secondary); color: white; border-color: var(--secondary); }
 .btn-delete { background: rgba(239, 68, 68, 0.08); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.2); padding: 8px 14px; font-size: 10px; margin-left: auto; border-radius: 8px; letter-spacing: 1px; }
 .btn-delete:hover { background: var(--danger); color: white; border-color: var(--danger); }
+
 .btn-random { background: linear-gradient(135deg, #3b82f6, #1d4ed8); flex: 1; }
+.btn-suizo { background: linear-gradient(135deg, #ef4444, #b91c1c); flex: 1; }
 .btn-manual { background: linear-gradient(135deg, #8b5cf6, #6d28d9); flex: 1; }
+
 .btn-export { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); flex: 1; text-transform: none; letter-spacing: 0;}
 .btn-export:hover { background: rgba(255,255,255,0.08); }
 .btn-danger { background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(153, 27, 27, 0.5)); border: 1px solid rgba(239, 68, 68, 0.4); width: 100%; margin-top: 15px; color: #fca5a5;}
@@ -212,6 +221,7 @@ input[type="checkbox"] { display: none; }
 .pod h3 { margin-top: 0; color: white; font-size: 1.2rem; }
 .pod select { margin: 8px 0 25px 0; width: 100%; display: block;}
 .pod label { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;}
+
 .nombres-mesa { font-size: 14px; color: #fcd34d; margin-bottom: 25px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.15); padding: 15px; border-radius: 10px; display: flex; align-items: center; gap: 10px; }
 .btn-save-pod { background: linear-gradient(135deg, var(--accent), #d97706); width: 100%; margin-top: 10px;}
 
