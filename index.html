@@ -18,7 +18,7 @@
 
     <h1>✨ LIGA COMMANDER ✨</h1>
 
- <div class="card" id="tarjeta-clasificacion">
+    <div class="card" id="tarjeta-clasificacion">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <h2 style="margin: 0;">🏆 CLASIFICACIÓN</h2>
             <button id="btn-fullscreen" class="btn-header" onclick="toggleFullscreen()">🔲 Pantalla Completa</button>
@@ -48,6 +48,7 @@
             </table>
         </div>
     </div>
+
     <details class="card" id="seccion-generador" open>
         <summary>🎲 GENERADOR DE JORNADAS</summary>
         <div class="details-content">
@@ -60,14 +61,15 @@
                     <span id="display-jornada" style="font-size: 1.5rem; font-weight: 900; color: var(--accent); min-width: 100px; text-align: center; letter-spacing: 2px;">J1</span>
                     <button class="btn-counter" onclick="cambiarJornada(1)">+</button>
                 </div>
-                <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px; margin-bottom: 0;">Los resultados se guardarán automáticamente bajo esta etiqueta.</p>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px; margin-bottom: 0;">Los resultados se guardarán automáticamente bajo esta etiqueta y el Suizo la usará para los cálculos.</p>
             </div>
 
             <p class="subtitle">Marca los jugadores presentes para optimizar las mesas:</p>
             <div id="jugadores-presentes" class="checkbox-container"></div>
             
             <div style="display: flex; gap: 15px; margin-top: 25px; flex-wrap: wrap;">
-                <button class="btn-random" onclick="generarMesas()">🔮 Generar Aleatorio</button>
+                <button class="btn-random" onclick="generarMesas('aleatorio')">🔮 Generar Aleatorio</button>
+                <button class="btn-suizo" onclick="generarMesas('suizo')">🏆 Generar Suizo</button>
                 <button class="btn-manual" onclick="crearMesaManual()">✍️ Añadir Manual</button>
             </div>
             
@@ -75,7 +77,7 @@
         </div>
     </details>
 
-   <details class="card">
+    <details class="card">
         <summary>👥 GESTIONAR JUGADORES</summary>
         <div class="details-content">
             <div style="display: flex; gap: 12px; align-items: center;">
