@@ -60,7 +60,6 @@ function activarEdicionExcel() {
     isModoEdicionExcel = true;
     mostrarTodosJugadores = true; 
     
-    // Ocultar selector normal y mostrar panel Excel
     document.getElementById('modo-clasificacion').style.display = 'none';
     document.getElementById('excel-controls').style.display = 'flex';
     
@@ -71,15 +70,12 @@ function activarEdicionExcel() {
 function cancelarEdicionExcel() {
     isModoEdicionExcel = false;
     
-    // Restaurar vista normal
     document.getElementById('modo-clasificacion').style.display = 'block';
     document.getElementById('excel-controls').style.display = 'none';
-    
-    document.getElementById('modo-clasificacion').value = 'general'; // Volvemos a la general por defecto
+    document.getElementById('modo-clasificacion').value = 'general'; 
     actualizarUI();
 }
 
-// Actualiza el número TOTAL de la fila instantáneamente cuando escribes
 function actualizarFilaExcel(inputEl) {
     let tr = inputEl.closest('tr');
     let inputs = tr.querySelectorAll('.excel-cell');
@@ -125,7 +121,6 @@ function guardarEdicionExcel() {
         guardarDatos();
     }
     
-    // Restaurar interfaz
     isModoEdicionExcel = false;
     document.getElementById('modo-clasificacion').style.display = 'block';
     document.getElementById('excel-controls').style.display = 'none';
@@ -192,16 +187,49 @@ function eliminarJugador(id) {
     }
 }
 
-function generarMesas() {
+// --- ALGORITMO SUIZO CON TIE-BREAKERS ---
+function generarMesas(modo = 'aleatorio') {
     const checkboxes = document.querySelectorAll('.check-jugador:checked');
     let presentes = Array.from(checkboxes).map(cb => jugadores.find(j => j.id == cb.value));
     const P = presentes.length;
 
     if (P < 3) { alert("Hacen falta al menos 3 jugadores para formar una mesa de Commander."); return; }
 
+    let nombreJornada = jornadasLista[indiceJornadaActual];
+    let puntosHoy = {};
+    let sumatorioPuntosHoy = 0; 
+
+    presentes.forEach(j => puntosHoy[j.id] = 0);
+    
+    historial.forEach(h => {
+        let fechaPartida = h.fecha.split(',')[0].trim();
+        if (fechaPartida === nombreJornada) {
+            h.resultados.forEach(r => {
+                if (puntosHoy[r.idJugador] !== undefined) {
+                    puntosHoy[r.idJugador] += r.puntos;
+                    sumatorioPuntosHoy += r.puntos;
+                }
+            });
+        }
+    });
+
+    // Desempate aleatorio siempre
     for (let i = P - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [presentes[i], presentes[j]] = [presentes[j], presentes[i]];
+    }
+
+    if (modo === 'suizo') {
+        if (sumatorioPuntosHoy === 0) {
+            alert("🎲 Primera ronda detectada: Como nadie tiene puntos aún hoy, las mesas se han generado de forma totalmente aleatoria (ignorando el Suizo).");
+        } else {
+            presentes.sort((a, b) => {
+                if (puntosHoy[b.id] !== puntosHoy[a.id]) {
+                    return puntosHoy[b.id] - puntosHoy[a.id];
+                }
+                return b.puntos - a.puntos;
+            });
+        }
     }
 
     let mesas_de_4 = Math.floor(P / 4);
@@ -219,32 +247,48 @@ function generarMesas() {
     let mesas = [];
     let indexJugador = 0;
 
-    for (let i = 0; i < mesas_de_5; i++) { mesas.push(presentes.slice(indexJugador, indexJugador + 5)); indexJugador += 5; }
     for (let i = 0; i < mesas_de_4; i++) { mesas.push(presentes.slice(indexJugador, indexJugador + 4)); indexJugador += 4; }
     for (let i = 0; i < mesas_de_3; i++) { mesas.push(presentes.slice(indexJugador, indexJugador + 3)); indexJugador += 3; }
+    for (let i = 0; i < mesas_de_5; i++) { mesas.push(presentes.slice(indexJugador, indexJugador + 5)); indexJugador += 5; }
 
     ultimasMesasGeneradas = mesas;
-    mostrarMesas(mesas);
+    mostrarMesas(mesas, modo, puntosHoy);
 }
 
-function mostrarMesas(mesas) {
+function mostrarMesas(mesas, modo = 'aleatorio', puntosHoy = {}) {
     const contenedor = document.getElementById('mesas-generadas');
     contenedor.innerHTML = '';
-    if(mesas.length > 0) { contenedor.innerHTML += `<button class="btn-tv" onclick="abrirModoTV()">📺 PROYECTAR EN TV</button>`; }
+
+    if(mesas.length > 0) {
+        contenedor.innerHTML += `<button class="btn-tv" onclick="abrirModoTV()">📺 PROYECTAR EN TV</button>`;
+    }
+
+    let tituloMesa = modo === 'suizo' ? '🏆 Mesa Suizo' : '🔮 Mesa Aleatoria';
+    let colorTitulo = modo === 'suizo' ? '#ef4444' : '#a855f7';
 
     mesas.forEach((mesa, index) => {
-        let html = `<div class="pod" id="pod-${index}"><h3>🔮 Mesa Aleatoria ${index + 1} <span style="font-size:12px; color:#94a3b8; font-weight:normal;">(${mesa.length} Jugadores)</span></h3>`;
-        const nombresMesa = mesa.map(j => j.nombre).join(' • ');
-        html += `<div class="nombres-mesa">⚡ ${nombresMesa}</div>`;
+        let html = `<div class="pod" id="pod-${index}">
+            <h3 style="color: ${colorTitulo}; margin-bottom: 5px;">${tituloMesa} ${index + 1} <span style="font-size:12px; color:#94a3b8; font-weight:normal;">(${mesa.length} Jugadores)</span></h3>`;
+        
+        const nombresMesa = mesa.map(j => {
+            let textoPuntos = modo === 'suizo' ? ` <span style="color:#fcd34d; font-size:11px; font-weight:normal;">(${puntosHoy[j.id]}p hoy | ${j.puntos}p gen)</span>` : '';
+            return `${j.nombre}${textoPuntos}`;
+        }).join(' <span style="color:#64748b;">•</span> ');
+        
+        html += `<div class="nombres-mesa" style="margin-top: 10px;">⚡ ${nombresMesa}</div>`;
         
         for(let i=0; i < mesa.length; i++) {
             html += `<label>${i+1}º PUESTO (+${puntosGlobales[i]} PTS):</label>
                      <select id="sel-pod-${index}-pos-${i}" onchange="actualizarDesplegables('pod-${index}', ${mesa.length})">
                         <option value="">-- Selecciona jugador --</option>`;
-            mesa.forEach(jugador => { html += `<option value="${jugador.id}">${jugador.nombre}</option>`; });
+            mesa.forEach(jugador => {
+                html += `<option value="${jugador.id}">${jugador.nombre}</option>`;
+            });
             html += `</select>`;
         }
-        html += `<button class="btn-save-pod" onclick="guardarResultadoMesa('pod-${index}', ${mesa.length})">Confirmar Resultado</button></div>`;
+
+        html += `<button class="btn-save-pod" onclick="guardarResultadoMesa('pod-${index}', ${mesa.length})">Confirmar Resultado</button>`;
+        html += `</div>`;
         contenedor.innerHTML += html;
     });
     contenedor.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -445,7 +489,7 @@ function reiniciarApp() {
 function actualizarFiltroFechas() {
     const select = document.getElementById('modo-clasificacion');
     
-    if (isModoEdicionExcel) return; // Si editamos, no tocamos el selector
+    if (isModoEdicionExcel) return; 
 
     const valorActual = select.value;
 
@@ -529,7 +573,6 @@ function renderizarClasificacion() {
         theadHTML += `<th style="color: var(--primary);">Total</th></tr>`;
         theadClasificacion.innerHTML = theadHTML;
 
-        // En modo edición mostramos a TODOS (incluso los de 0 puntos). Si no, solo los activos.
         datosClasificacion = Object.values(statsTemp).filter(j => isModoEdicionExcel || j.totalGuardado !== 0 || j.sumaHistorial !== 0 || j.previo !== 0);
         datosClasificacion.sort((a, b) => b.totalGuardado - a.totalGuardado);
 
