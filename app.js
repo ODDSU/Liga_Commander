@@ -1,6 +1,7 @@
-
 let jugadores = JSON.parse(localStorage.getItem('commander_jugadores')) || [];
 let historial = JSON.parse(localStorage.getItem('commander_historial')) || [];
+let asistentesPorJornada = JSON.parse(localStorage.getItem('commander_asistentes_jornada')) || {};
+
 let contadorManual = 0; 
 const puntosGlobales = [4, 3, 2, 1, 0]; 
 
@@ -19,6 +20,7 @@ function cambiarJornada(direccion) {
     if (indiceJornadaActual >= jornadasLista.length) indiceJornadaActual = jornadasLista.length - 1;
     document.getElementById('display-jornada').innerText = jornadasLista[indiceJornadaActual];
     localStorage.setItem('commander_jornada_activa', indiceJornadaActual);
+    actualizarUI(); 
 }
 
 function cambiarRonda(direccion) {
@@ -63,14 +65,20 @@ function agregarJugador() {
     }
 }
 
-// --- LÓGICA DE EDICIÓN MODO EXCEL CON BOTONES FIJOS ---
+function desbloquearAsistencia() {
+    if(confirm("¿Seguro que quieres modificar la asistencia? Si añades jugadores nuevos en mitad de la jornada, empezarán con 0 puntos hoy.")) {
+        let nombreJornada = jornadasLista[indiceJornadaActual];
+        delete asistentesPorJornada[nombreJornada];
+        localStorage.setItem('commander_asistentes_jornada', JSON.stringify(asistentesPorJornada));
+        actualizarUI();
+    }
+}
+
 function activarEdicionExcel() {
     isModoEdicionExcel = true;
     mostrarTodosJugadores = true; 
-    
     document.getElementById('modo-clasificacion').style.display = 'none';
     document.getElementById('excel-controls').style.display = 'flex';
-    
     document.getElementById('tarjeta-clasificacion').scrollIntoView({ behavior: 'smooth' });
     renderizarClasificacion();
 }
@@ -135,58 +143,6 @@ function guardarEdicionExcel() {
     actualizarUI();
 }
 
-function anadirPuntosJornada(id) {
-    let jugador = jugadores.find(j => j.id === id);
-    if (!jugador) return;
-
-    let jornadaSugerida = jornadasLista[indiceJornadaActual];
-
-    let nombreJornada = prompt(`Añadir registro a ${jugador.nombre}\n\nIntroduce el identificador de la Jornada\n(Ejemplo: J1, J2, Semifinal...):`, jornadaSugerida);
-    if (!nombreJornada || nombreJornada.trim() === "") return;
-
-    let puntosStr = prompt(`¿Cuántos puntos consiguió ${jugador.nombre} en "${nombreJornada}"?`);
-    if (puntosStr === null) return;
-
-    let puntos = parseInt(puntosStr);
-    if (isNaN(puntos)) {
-        alert("❌ Por favor, introduce un número válido.");
-        return;
-    }
-
-    jugador.puntos += puntos;
-    jugador.partidas += 1;
-
-    historial.unshift({
-        id: Date.now() + Math.floor(Math.random() * 1000), 
-        fecha: nombreJornada.trim(),
-        resultados: [{ idJugador: jugador.id, nombre: jugador.nombre, puntos: puntos, posicion: "-" }]
-    });
-
-    guardarDatos();
-}
-
-function editarJugador(id) {
-    let jugador = jugadores.find(j => j.id === id);
-    if (!jugador) return;
-
-    let nuevosPuntos = prompt(`Modificar PUNTOS TOTALES de ${jugador.nombre}\n\nPuntos actuales: ${jugador.puntos}\nIntroduce los nuevos puntos:`, jugador.puntos);
-    if (nuevosPuntos === null) return; 
-
-    let nuevasPartidas = prompt(`Modificar PARTIDAS JUGADAS de ${jugador.nombre}\n\nPartidas actuales: ${jugador.partidas}\nIntroduce las nuevas partidas:`, jugador.partidas);
-    if (nuevasPartidas === null) return; 
-
-    nuevosPuntos = parseInt(nuevosPuntos);
-    nuevasPartidas = parseInt(nuevasPartidas);
-
-    if (!isNaN(nuevosPuntos) && !isNaN(nuevasPartidas)) {
-        jugador.puntos = nuevosPuntos;
-        jugador.partidas = nuevasPartidas;
-        guardarDatos();
-    } else {
-        alert("❌ Por favor, introduce solo números válidos.");
-    }
-}
-
 function eliminarJugador(id) {
     if(confirm("¿Seguro que quieres borrar a este jugador? Se perderán sus puntos.")) {
         jugadores = jugadores.filter(j => j.id !== id);
@@ -194,18 +150,38 @@ function eliminarJugador(id) {
     }
 }
 
-// --- ALGORITMO SUIZO CON TIE-BREAKERS Y OPTIMIZACIÓN DE MESAS DE 4 ---
 function generarMesas(modo = 'aleatorio') {
-    const checkboxes = document.querySelectorAll('.check-jugador:checked');
-    let presentes = Array.from(checkboxes).map(cb => jugadores.find(j => j.id == cb.value));
-    const P = presentes.length;
-
-    if (P < 3) { alert("Hacen falta al menos 3 jugadores para formar una mesa de Commander."); return; }
-
     let nombreJornada = jornadasLista[indiceJornadaActual];
+    let presentes = [];
+
+    // 1. GESTIÓN DEL CANDADO DE ASISTENCIA
+    if (!asistentesPorJornada[nombreJornada]) {
+        const checkboxes = document.querySelectorAll('.check-jugador:checked');
+        let idsPresentes = Array.from(checkboxes).map(cb => parseInt(cb.value));
+        
+        if (idsPresentes.length < 3) { 
+            alert("Hacen falta al menos 3 jugadores marcados para formar una mesa."); 
+            return; 
+        }
+        
+        asistentesPorJornada[nombreJornada] = idsPresentes;
+        localStorage.setItem('commander_asistentes_jornada', JSON.stringify(asistentesPorJornada));
+        actualizarUI(); 
+    }
+
+    let idsBloqueados = asistentesPorJornada[nombreJornada];
+    presentes = idsBloqueados.map(id => jugadores.find(j => j.id === id)).filter(j => j !== undefined);
+
+    if (presentes.length < 3) { alert("Error: No hay suficientes jugadores en la asistencia."); return; }
+
+    // 2. AUTO-INCREMENTO DE LA RONDA SI ES SUIZO
+    if (modo === 'suizo') {
+        cambiarRonda(1); 
+    }
+
+    // 3. RECABAR PUNTOS DE HOY
     let puntosHoy = {};
     let sumatorioPuntosHoy = 0; 
-
     presentes.forEach(j => puntosHoy[j.id] = 0);
     
     historial.forEach(h => {
@@ -220,8 +196,7 @@ function generarMesas(modo = 'aleatorio') {
         }
     });
 
-    // Desempate aleatorio siempre
-    for (let i = P - 1; i > 0; i--) {
+    for (let i = presentes.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [presentes[i], presentes[j]] = [presentes[j], presentes[i]];
     }
@@ -231,23 +206,21 @@ function generarMesas(modo = 'aleatorio') {
             alert("🎲 Primera ronda detectada: Como nadie tiene puntos aún hoy, las mesas se han generado de forma totalmente aleatoria (ignorando el Suizo).");
         } else {
             presentes.sort((a, b) => {
-                if (puntosHoy[b.id] !== puntosHoy[a.id]) {
-                    return puntosHoy[b.id] - puntosHoy[a.id];
-                }
+                if (puntosHoy[b.id] !== puntosHoy[a.id]) return puntosHoy[b.id] - puntosHoy[a.id];
                 return b.puntos - a.puntos;
             });
         }
     }
 
-    // MATEMÁTICAS ESTRICTAS PARA PRIORIZAR MESAS DE 4
+    let P = presentes.length;
     let mesas_de_4 = Math.floor(P / 4);
     let mesas_de_3 = 0;
     let mesas_de_5 = 0;
     let resto = P % 4;
 
     if (resto === 1) {
-        mesas_de_4 -= 1; // Si somos 9, quitamos una de 4...
-        mesas_de_5 = 1;  // ... y hacemos una de 5 (Total: una de 4, una de 5). ¡Maximiza las de 4!
+        mesas_de_4 -= 1; 
+        mesas_de_5 = 1;  
     } else if (resto === 2) { 
         mesas_de_4 -= 1; 
         mesas_de_3 += 2;
@@ -432,7 +405,6 @@ function procesarGuardado(detallesMesa, idElemento) {
     });
 
     let nombreJornada = jornadasLista[indiceJornadaActual] || "J1";
-    // MAGIA DE GUARDADO: Incluye la Ronda en la cadena del tiempo para no romper las columnas de Excel
     let fechaGuardado = `${nombreJornada}, Ronda ${rondaActual} • ${new Date().toLocaleTimeString()}`;
 
     historial.unshift({ id: Date.now(), fecha: fechaGuardado, resultados: detallesMesa });
@@ -463,7 +435,7 @@ function anularResultado(idHistorial) {
 }
 
 function exportarDatos() {
-    const blob = new Blob([JSON.stringify({ jugadores, historial }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ jugadores, historial, asistentesPorJornada }, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `Liga_Commander_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
@@ -480,6 +452,7 @@ function importarDatos(event) {
             if (datos.jugadores && datos.historial && confirm("⚠️ Esto sobreescribirá los datos actuales. ¿Continuar?")) {
                 jugadores = datos.jugadores;
                 historial = datos.historial;
+                if(datos.asistentesPorJornada) asistentesPorJornada = datos.asistentesPorJornada;
                 guardarDatos(); 
             }
         } catch (error) { alert("❌ Archivo no válido."); }
@@ -490,9 +463,12 @@ function importarDatos(event) {
 
 function reiniciarApp() {
     if (prompt("Escribe BORRAR para eliminar todo:") === "BORRAR") {
-        jugadores = []; historial = [];
+        jugadores = []; 
+        historial = [];
+        asistentesPorJornada = {};
         localStorage.removeItem('commander_jugadores');
         localStorage.removeItem('commander_historial');
+        localStorage.removeItem('commander_asistentes_jornada');
         document.getElementById('mesas-generadas').innerHTML = '';
         actualizarUI();
     }
@@ -694,9 +670,30 @@ function actualizarUI() {
         </li>`
     ).join('');
 
-    document.getElementById('jugadores-presentes').innerHTML = jugadores.map(j => 
-        `<label><input type="checkbox" class="check-jugador" value="${j.id}" checked> ${j.nombre}</label>`
-    ).join('');
+    let nombreJornada = jornadasLista[indiceJornadaActual];
+    let bloqueados = asistentesPorJornada[nombreJornada];
+    let headerAsistencia = document.getElementById('header-asistencia');
+    
+    if (bloqueados) {
+        headerAsistencia.innerHTML = `
+            <p class="subtitle" style="margin:0;">🔒 Asistencia bloqueada para ${nombreJornada}:</p>
+            <button onclick="desbloquearAsistencia()" style="background:transparent; border:1px solid var(--danger); color:#fca5a5; padding:6px 10px; font-size:11px; border-radius:8px; cursor:pointer; font-weight:bold;">🔓 Modificar Asistencia</button>
+        `;
+    } else {
+        headerAsistencia.innerHTML = `<p class="subtitle" style="margin:0;">Marca los jugadores que asisten a la ${nombreJornada}:</p>`;
+    }
+
+    document.getElementById('jugadores-presentes').innerHTML = jugadores.map(j => {
+        if (bloqueados) {
+            let isChecked = bloqueados.includes(j.id) ? 'checked' : '';
+            let isDisabled = 'disabled';
+            let opacity = bloqueados.includes(j.id) ? '1' : '0.3';
+            return `<label style="opacity: ${opacity}; cursor: not-allowed;"><input type="checkbox" class="check-jugador" value="${j.id}" ${isChecked} ${isDisabled}> ${j.nombre}</label>`;
+        } else {
+            // Todos desmarcados por defecto
+            return `<label><input type="checkbox" class="check-jugador" value="${j.id}"> ${j.nombre}</label>`;
+        }
+    }).join('');
 
     let guardadoJornada = localStorage.getItem('commander_jornada_activa');
     if(guardadoJornada !== null) {
@@ -730,12 +727,17 @@ function actualizarUI() {
             let openAttr = index === 0 ? 'open' : '';
             htmlHistorial += `<details class="historial-jornada" ${openAttr}><summary>📅 Jornada: ${fecha}</summary><div>`;
             gruposPorFecha[fecha].forEach(h => {
-                let hora = h.fecha.split(',')[1] ? h.fecha.split(',')[1].trim() : '';
-                let horaHtml = hora ? `<span class="historial-date">🕒 ${hora}</span>` : '';
+                let trozos = h.fecha.split('•');
+                let infoExtra = trozos[0].includes('Ronda') ? trozos[0].split(',')[1].trim() : ''; 
+                let hora = trozos[1] ? trozos[1].trim() : (h.fecha.split(',')[1] ? h.fecha.split(',')[1].trim() : '');
+                
+                let tagRonda = infoExtra ? `<span style="background:rgba(239, 68, 68, 0.2); color:#fca5a5; padding:2px 6px; border-radius:4px; margin-right:8px; font-weight:bold;">${infoExtra}</span>` : '';
+                let horaHtml = hora ? `<span class="historial-date">${tagRonda}🕒 ${hora}</span>` : '';
+                
                 htmlHistorial += `
                     <div class="historial-item">
                         ${horaHtml}
-                        <p>${h.resultados.map(r => `<strong style="color:var(--primary);">${r.posicion}º</strong> ${r.nombre} <span style="color:var(--success); font-size:12px;">(+${r.puntos})</span>`).join(' <span style="color:rgba(255,255,255,0.05); margin: 0 5px;">|</span> ')}</p>
+                        <p style="margin-top: 8px;">${h.resultados.map(r => `<strong style="color:var(--primary);">${r.posicion}º</strong> ${r.nombre} <span style="color:var(--success); font-size:12px;">(+${r.puntos})</span>`).join(' <span style="color:rgba(255,255,255,0.05); margin: 0 5px;">|</span> ')}</p>
                         <div style="text-align:right; margin-top: 5px;">
                             <button class="btn-delete" style="background:transparent; border:1px solid rgba(239, 68, 68, 0.3);" onclick="anularResultado(${h.id})">Anular</button>
                         </div>
@@ -748,3 +750,4 @@ function actualizarUI() {
 }
 
 document.addEventListener("DOMContentLoaded", actualizarUI);
+
