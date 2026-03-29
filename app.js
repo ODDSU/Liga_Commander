@@ -293,8 +293,12 @@ function mostrarMesas(mesas, modo = 'aleatorio', puntosHoy = {}, rondaActual = 1
             html += `</select>`;
         }
 
-        html += `<button class="btn-save-pod" onclick="guardarResultadoMesa('pod-${index}', ${mesa.length})">Confirmar Resultado</button>`;
-        html += `</div>`;
+        // --- BOTONES DOBLES: GUARDAR Y EMPATAR ---
+        html += `<div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button class="btn-save-pod" style="flex: 2;" onclick="guardarResultadoMesa('pod-${index}', ${mesa.length})">💾 Confirmar</button>
+                    <button class="btn-tie" style="flex: 1.5; background: linear-gradient(135deg, #64748b, #475569);" onclick="declararEmpate('pod-${index}', ${mesa.length})">⏱️ Empatar Mesa</button>
+                 </div></div>`;
+                 
         contenedor.innerHTML += html;
     });
     contenedor.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -371,7 +375,10 @@ function crearMesaManual() {
         jugadores.forEach(jugador => { html += `<option value="${jugador.id}">${jugador.nombre}</option>`; });
         html += `</select>`;
     }
-    html += `<button class="btn-save-pod" onclick="guardarResultadoMesa('manual-${contadorManual}', 5)">Confirmar Manual</button></div>`;
+    html += `<div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn-save-pod" style="flex: 2;" onclick="guardarResultadoMesa('manual-${contadorManual}', 5)">💾 Confirmar</button>
+                <button class="btn-tie" style="flex: 1.5; background: linear-gradient(135deg, #64748b, #475569);" onclick="declararEmpate('manual-${contadorManual}', 5)">⏱️ Empatar Mesa</button>
+             </div></div>`;
     contenedor.insertAdjacentHTML('afterbegin', html);
     contadorManual++;
 }
@@ -417,6 +424,72 @@ function guardarResultadoMesa(prefijoMesa, numJugadores) {
         detallesMesa.push({ idJugador: idJugador, nombre: nombreLimpio, puntos: puntosGlobales[i], posicion: i + 1 });
     }
     procesarGuardado(detallesMesa, prefijoMesa.includes('pod') ? prefijoMesa : prefijoMesa);
+}
+
+// --- NUEVA LÓGICA: CALCULADORA OFICIAL DE EMPATES ---
+function declararEmpate(prefijoMesa, numJugadores) {
+    let idsAsignados = new Set();
+    let detallesMesa = [];
+    let puntosUsados = 0;
+    let selectBase = null;
+
+    // 1. Identificar a quién ya se le asignó puesto (los que murieron antes del tiempo)
+    for(let i=0; i < numJugadores; i++) {
+        const selectEl = document.getElementById(`sel-${prefijoMesa}-pos-${i}`);
+        if(!selectBase && selectEl) selectBase = selectEl; // Capturamos el listado de jugadores
+        
+        if(selectEl && selectEl.value) {
+            idsAsignados.add(selectEl.value);
+            const nombreLimpio = selectEl.options[selectEl.selectedIndex].text.replace(" (Ya asignado)", "");
+            detallesMesa.push({ idJugador: selectEl.value, nombre: nombreLimpio, puntos: puntosGlobales[i], posicion: i + 1 });
+            puntosUsados += puntosGlobales[i];
+        }
+    }
+
+    // 2. Obtener a todos los jugadores asignados a esa mesa inicialmente
+    let todosIds = [];
+    let todosNombres = {};
+    Array.from(selectBase.options).forEach(opt => {
+        if(opt.value !== "") {
+            todosIds.push(opt.value);
+            todosNombres[opt.value] = opt.text.replace(" (Ya asignado)", "");
+        }
+    });
+
+    // 3. Encontrar quiénes son los empatados (los que no tienen puesto todavía)
+    let idsRestantes = todosIds.filter(id => !idsAsignados.has(id));
+
+    if (idsRestantes.length === 0) {
+        alert("❌ Todos los jugadores ya tienen posición. Para empatar, tienes que dejar los desplegables de los que empatan en blanco.");
+        return;
+    }
+    if (idsRestantes.length === 1) {
+        alert("❌ Solo queda 1 jugador sin asignar. Asígnalo normalmente en el desplegable.");
+        return;
+    }
+
+    // 4. Matemáticas oficiales: Puntos Sobrantes / Empatados (redondeando abajo)
+    let puntosTotalesMesa = 0;
+    for(let i=0; i < numJugadores; i++) puntosTotalesMesa += puntosGlobales[i];
+    
+    let puntosRestantes = puntosTotalesMesa - puntosUsados;
+    let puntosPorEmpate = Math.floor(puntosRestantes / idsRestantes.length);
+
+    // Asignar los puntos del empate
+    idsRestantes.forEach(id => {
+        detallesMesa.push({ idJugador: id, nombre: todosNombres[id], puntos: puntosPorEmpate, posicion: "Empate" });
+    });
+
+    // 5. Ventana de confirmación para que el organizador lo verifique
+    let mensaje = "⏱️ CÁLCULO DE EMPATE OFICIAL:\n\n";
+    detallesMesa.forEach(d => {
+        mensaje += `> ${d.nombre}: ${d.puntos} puntos (Posición: ${d.posicion})\n`;
+    });
+    mensaje += `\n¿Guardar este resultado en el historial?`;
+
+    if(confirm(mensaje)) {
+        procesarGuardado(detallesMesa, prefijoMesa.includes('pod') ? prefijoMesa : prefijoMesa);
+    }
 }
 
 function procesarGuardado(detallesMesa, idElemento) {
@@ -690,7 +763,6 @@ function actualizarUI() {
         </li>`
     ).join('');
 
-    // --- MAGIA AÑADIDA: Guardar selecciones previas para que no se marquen todos de golpe ---
     const checkboxesActivos = document.querySelectorAll('.check-jugador:checked');
     const idsActivos = new Set(Array.from(checkboxesActivos).map(cb => parseInt(cb.value)));
 
