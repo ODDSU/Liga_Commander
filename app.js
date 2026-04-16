@@ -349,10 +349,17 @@ function forzarJugadorEnMesa(index) {
     }
 }
 
-// --- MODO TV DINÁMICO MEJORADO Y BLINDADO ---
+
+// --- MODO TV DINÁMICO MEJORADO Y SIN PANTALLA DE BLOQUEO ---
 function abrirModoTV() {
     if(ultimasMesasGeneradas.length === 0) { alert("Genera las mesas primero."); return; }
-    if (!ventanaTV || ventanaTV.closed) { ventanaTV = window.open("", "VentanaTVCommander", "width=1280,height=720"); }
+    
+    // Abrimos la ventana y comprobamos si el navegador la ha bloqueado
+    let ventanaEmergente = window.open("", "VentanaTVCommander", "width=1280,height=720");
+    if (!ventanaEmergente) {
+        alert("❌ Tu navegador ha bloqueado la ventana emergente. Por favor, permite las ventanas emergentes (pop-ups) para esta página arriba a la derecha en la barra de direcciones.");
+        return;
+    }
 
     let numMesas = ultimasMesasGeneradas.length;
     let cols = 1; let rows = 1;
@@ -370,14 +377,16 @@ function abrirModoTV() {
     let htmlPods = "";
     ultimasMesasGeneradas.forEach((mesa, index) => {
         let delay = index * 0.1; 
-        htmlPods += "<div class='tv-pod' style='animation-delay: " + delay + "s'><h3>MESA " + (index + 1) + "</h3>";
+        htmlPods += `<div class="tv-pod" style="animation-delay: ${delay}s">
+                        <h3>MESA ${index + 1}</h3>`;
         mesa.forEach(jugador => { 
-            htmlPods += "<div class='tv-player'><span class='tv-icon'>⚡</span> " + jugador.nombre + "</div>"; 
+            htmlPods += `<div class="tv-player"><span class="tv-icon">⚡</span> ${jugador.nombre}</div>`; 
         });
-        htmlPods += "</div>";
+        htmlPods += `</div>`;
     });
 
-    const htmlPantallaTV = `<!DOCTYPE html>
+    const htmlPantallaTV = `
+        <!DOCTYPE html>
         <html lang="es">
         <head>
             <meta charset="UTF-8">
@@ -388,17 +397,13 @@ function abrirModoTV() {
                 body { 
                     -ms-overflow-style: none; scrollbar-width: none; background: #09090e; color: white; 
                     font-family: 'Poppins', sans-serif; margin: 0; padding: 0;
-                    height: 100vh; width: 100vw; overflow: hidden; cursor: pointer; box-sizing: border-box;
+                    height: 100vh; width: 100vw; overflow: hidden; box-sizing: border-box;
                 }
                 .bg-auras { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; }
                 .aura { position: absolute; border-radius: 50%; filter: blur(150px); opacity: 0.5; animation: floatAura 20s infinite alternate ease-in-out; }
                 .aura-1 { width: 60vw; height: 60vw; background: #5b21b6; top: -20%; left: -10%; }
                 .aura-2 { width: 50vw; height: 50vw; background: #1e3a8a; bottom: -20%; right: -10%; animation-delay: -5s; }
                 @keyframes floatAura { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(60px, 40px) scale(1.1); } }
-                
-                #start-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; justify-content: center; align-items: center; background: #09090e; transition: opacity 0.5s; }
-                .click-prompt { font-size: 2rem; color: rgba(255,255,255,0.8); letter-spacing: 4px; font-weight: 300; text-transform: uppercase; animation: pulsePrompt 2s infinite ease-in-out; }
-                @keyframes pulsePrompt { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
                 
                 #main-content { 
                     padding: 2vh 2vw; 
@@ -414,13 +419,15 @@ function abrirModoTV() {
                     background: linear-gradient(to right, #c084fc, #60a5fa, #c084fc); background-size: 200% auto; 
                     -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 8px; 
                     flex-shrink: 0; height: 8vh; display: flex; justify-content: center; align-items: center;
+                    animation: shineTitle 4s linear infinite, fadeDown 0.8s ease-out forwards;
                 }
-                .is-playing .tv-title { opacity: 1; transform: translateY(0); }
+                @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes shineTitle { to { background-position: 200% center; } }
                 
                 .tv-grid { 
                     display: grid; 
-                    grid-template-columns: repeat(var(--cols), 1fr); 
-                    grid-template-rows: repeat(var(--rows), 1fr); 
+                    grid-template-columns: repeat(${cols}, 1fr); 
+                    grid-template-rows: repeat(${rows}, 1fr); 
                     gap: 1.5vh; 
                     flex-grow: 1; 
                     min-height: 0; 
@@ -436,38 +443,42 @@ function abrirModoTV() {
                     position: relative; overflow: hidden; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
                     min-height: 0; min-width: 0; 
                     opacity: 0; transform: scale(0.9);
+                    animation: cardEnter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
                 }
-                .is-playing .tv-pod { animation: cardEnter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
                 @keyframes cardEnter { to { opacity: 1; transform: scale(1); } }
                 
                 .tv-pod::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: linear-gradient(90deg, #f59e0b, #d97706); }
                 
                 .tv-pod h3 { 
-                    font-size: calc(min(3vw, 14vh / var(--rows))); 
-                    color: #f59e0b; margin: 0 0 calc(1.5vh / var(--rows)) 0; font-weight: 900; 
+                    font-size: calc(min(3vw, 14vh / ${rows})); 
+                    color: #f59e0b; margin: 0 0 calc(1.5vh / ${rows}) 0; font-weight: 900; 
                     letter-spacing: 2px; white-space: nowrap; 
                 }
                 .tv-player { 
-                    font-size: calc(min(2.5vw, 11vh / var(--rows))); 
-                    color: #f8fafc; margin: calc(0.5vh / var(--rows)) 0; font-weight: 700; 
+                    font-size: calc(min(2.5vw, 11vh / ${rows})); 
+                    color: #f8fafc; margin: calc(0.5vh / ${rows}) 0; font-weight: 700; 
                     display: flex; align-items: center; justify-content: center; gap: 1vw; 
                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 95%;
                 }
-                .tv-icon { color: #8b5cf6; font-size: calc(min(2.5vw, 11vh / var(--rows))); }
+                .tv-icon { color: #8b5cf6; font-size: calc(min(2.5vw, 11vh / ${rows})); }
             </style>
         </head>
-        <body onclick="this.classList.add('is-playing'); document.getElementById('start-overlay').style.display='none'; this.style.cursor='default';">
-            <div id="start-overlay"><div class="click-prompt">Haz clic para iniciar proyección</div></div>
+        <body>
             <div id="main-content">
                 <div class="bg-auras"><div class="aura aura-1"></div><div class="aura aura-2"></div></div>
                 <div class="tv-title">EMPAREJAMIENTOS</div>
-                <div class="tv-grid" style="--cols: ` + cols + `; --rows: ` + rows + `;">` + htmlPods + `</div>
+                <div class="tv-grid">${htmlPods}</div>
             </div>
         </body>
-        </html>`;
-    ventanaTV.document.open();
-    ventanaTV.document.write(htmlPantallaTV);
-    ventanaTV.document.close();
+        </html>
+    `;
+    
+    ventanaEmergente.document.open();
+    ventanaEmergente.document.write(htmlPantallaTV);
+    ventanaEmergente.document.close();
+    
+    // Forzamos a guardar la referencia en la variable global para que no intente abrir infinitas ventanas
+    ventanaTV = ventanaEmergente; 
     ventanaTV.focus();
 }
 
