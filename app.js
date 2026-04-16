@@ -274,7 +274,10 @@ function mostrarMesas(mesas, modo = 'aleatorio', puntosHoy = {}, rondaActual = 1
 
     mesas.forEach((mesa, index) => {
         let html = `<div class="pod" id="pod-${index}">
-            <h3 style="color: ${colorTitulo}; margin-bottom: 5px;">${tituloMesa} ${index + 1} <span style="font-size:12px; color:#94a3b8; font-weight:normal;">(${mesa.length} Jugadores)</span></h3>`;
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <h3 style="color: ${colorTitulo}; margin: 0;">${tituloMesa} ${index + 1} <span id="span-count-${index}" style="font-size:12px; color:#94a3b8; font-weight:normal;">(${mesa.length} Jugadores)</span></h3>
+                <button class="btn-header" style="padding: 4px 10px; font-size: 11px; background: rgba(139, 92, 246, 0.2); color: white; border: 1px solid var(--primary);" onclick="forzarJugadorEnMesa(${index})">➕ Añadir a mesa</button>
+            </div>`;
         
         const nombresMesa = mesa.map(j => {
             let textoPuntos = modo === 'suizo' ? ` <span style="color:#fcd34d; font-size:11px; font-weight:normal;">(${puntosHoy[j.id]}p hoy | ${j.puntos}p gen)</span>` : '';
@@ -283,18 +286,20 @@ function mostrarMesas(mesas, modo = 'aleatorio', puntosHoy = {}, rondaActual = 1
         
         html += `<div class="nombres-mesa" style="margin-top: 10px;">⚡ ${nombresMesa}</div>`;
         
+        html += `<div id="selects-pod-${index}">`;
         for(let i=0; i < mesa.length; i++) {
-            html += `<label>${i+1}º PUESTO (+${puntosGlobales[i]} PTS):</label>
+            html += `<div class="puesto-row" id="pod-${index}-puesto-${i}">
+                     <label>${i+1}º PUESTO (+${puntosGlobales[i]} PTS):</label>
                      <select id="sel-pod-${index}-pos-${i}" onchange="actualizarDesplegables('pod-${index}', ${mesa.length})">
                         <option value="">-- Selecciona jugador --</option>`;
             mesa.forEach(jugador => {
                 html += `<option value="${jugador.id}">${jugador.nombre}</option>`;
             });
-            html += `</select>`;
+            html += `</select></div>`;
         }
+        html += `</div>`;
 
-        // --- BOTONES DOBLES: GUARDAR Y EMPATAR ---
-        html += `<div style="display: flex; gap: 10px; margin-top: 15px;">
+        html += `<div id="btns-pod-${index}" style="display: flex; gap: 10px; margin-top: 15px;">
                     <button class="btn-save-pod" style="flex: 2;" onclick="guardarResultadoMesa('pod-${index}', ${mesa.length})">💾 Confirmar</button>
                     <button class="btn-tie" style="flex: 1.5; background: linear-gradient(135deg, #64748b, #475569);" onclick="declararEmpate('pod-${index}', ${mesa.length})">⏱️ Empatar Mesa</button>
                  </div></div>`;
@@ -302,6 +307,46 @@ function mostrarMesas(mesas, modo = 'aleatorio', puntosHoy = {}, rondaActual = 1
         contenedor.innerHTML += html;
     });
     contenedor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// --- NUEVA FUNCIÓN: PARA METER A ALGUIEN QUE LLEGA TARDE EN UNA MESA YA CREADA ---
+function forzarJugadorEnMesa(index) {
+    const contenedorSelects = document.getElementById(`selects-pod-${index}`);
+    let numJugadores = contenedorSelects.querySelectorAll('.puesto-row').length;
+
+    if (numJugadores >= 5) {
+        alert("❌ No se recomiendan mesas de más de 5 jugadores en Commander.");
+        return; 
+    }
+
+    let i = numJugadores;
+    let opcional = i >= 3 ? " <span style='font-weight:normal; text-transform:none; color:#64748b;'>(Opcional)</span>" : "";
+    let puntos = puntosGlobales[i] !== undefined ? puntosGlobales[i] : 0;
+
+    let htmlNuevoSelect = `<div class="puesto-row" id="pod-${index}-puesto-${i}">
+        <label>${i+1}º PUESTO (+${puntos} PTS) ${opcional}:</label>
+        <select id="sel-pod-${index}-pos-${i}" onchange="actualizarDesplegables('pod-${index}', ${numJugadores + 1})">
+            <option value="">-- Buscar jugador (Todos) --</option>`;
+    
+    jugadores.forEach(jugador => {
+        htmlNuevoSelect += `<option value="${jugador.id}">${jugador.nombre}</option>`;
+    });
+    
+    htmlNuevoSelect += `</select></div>`;
+    contenedorSelects.insertAdjacentHTML('beforeend', htmlNuevoSelect);
+
+    document.getElementById(`span-count-${index}`).innerText = `(${numJugadores + 1} Jugadores)`;
+
+    const contenedorBtns = document.getElementById(`btns-pod-${index}`);
+    contenedorBtns.innerHTML = `
+        <button class="btn-save-pod" style="flex: 2;" onclick="guardarResultadoMesa('pod-${index}', ${numJugadores + 1})">💾 Confirmar</button>
+        <button class="btn-tie" style="flex: 1.5; background: linear-gradient(135deg, #64748b, #475569);" onclick="declararEmpate('pod-${index}', ${numJugadores + 1})">⏱️ Empatar Mesa</button>
+    `;
+
+    for (let j = 0; j < i; j++) {
+        let sel = document.getElementById(`sel-pod-${index}-pos-${j}`);
+        if (sel) sel.setAttribute('onchange', `actualizarDesplegables('pod-${index}', ${numJugadores + 1})`);
+    }
 }
 
 function abrirModoTV() {
@@ -369,13 +414,19 @@ function crearMesaManual() {
     if(jugadores.length < 3) { alert("Añade jugadores primero."); return; }
     const contenedor = document.getElementById('mesas-generadas');
     let html = `<div class="pod manual" id="manual-${contadorManual}"><h3 style="color:#a855f7;">✍️ Mesa Manual</h3><p style="font-size:13px; color:#94a3b8; margin-top:-10px; margin-bottom: 20px;">Asigna las posiciones libremente.</p>`;
+    
+    html += `<div id="selects-manual-${contadorManual}">`;
     for(let i=0; i < 5; i++) {
         let opcional = i >= 3 ? " <span style='font-weight:normal; text-transform:none; color:#64748b;'>(Opcional)</span>" : "";
-        html += `<label>${i+1}º PUESTO (+${puntosGlobales[i]} PTS) ${opcional}:</label><select id="sel-manual-${contadorManual}-pos-${i}" onchange="actualizarDesplegables('manual-${contadorManual}', 5)"><option value="">-- Elige un jugador --</option>`;
+        html += `<div class="puesto-row" id="manual-${contadorManual}-puesto-${i}">
+                 <label>${i+1}º PUESTO (+${puntosGlobales[i]} PTS) ${opcional}:</label>
+                 <select id="sel-manual-${contadorManual}-pos-${i}" onchange="actualizarDesplegables('manual-${contadorManual}', 5)"><option value="">-- Elige un jugador --</option>`;
         jugadores.forEach(jugador => { html += `<option value="${jugador.id}">${jugador.nombre}</option>`; });
-        html += `</select>`;
+        html += `</select></div>`;
     }
-    html += `<div style="display: flex; gap: 10px; margin-top: 15px;">
+    html += `</div>`;
+
+    html += `<div id="btns-manual-${contadorManual}" style="display: flex; gap: 10px; margin-top: 15px;">
                 <button class="btn-save-pod" style="flex: 2;" onclick="guardarResultadoMesa('manual-${contadorManual}', 5)">💾 Confirmar</button>
                 <button class="btn-tie" style="flex: 1.5; background: linear-gradient(135deg, #64748b, #475569);" onclick="declararEmpate('manual-${contadorManual}', 5)">⏱️ Empatar Mesa</button>
              </div></div>`;
@@ -433,10 +484,9 @@ function declararEmpate(prefijoMesa, numJugadores) {
     let puntosUsados = 0;
     let selectBase = null;
 
-    // 1. Identificar a quién ya se le asignó puesto (los que murieron antes del tiempo)
     for(let i=0; i < numJugadores; i++) {
         const selectEl = document.getElementById(`sel-${prefijoMesa}-pos-${i}`);
-        if(!selectBase && selectEl) selectBase = selectEl; // Capturamos el listado de jugadores
+        if(!selectBase && selectEl) selectBase = selectEl; 
         
         if(selectEl && selectEl.value) {
             idsAsignados.add(selectEl.value);
@@ -446,7 +496,6 @@ function declararEmpate(prefijoMesa, numJugadores) {
         }
     }
 
-    // 2. Obtener a todos los jugadores asignados a esa mesa inicialmente
     let todosIds = [];
     let todosNombres = {};
     Array.from(selectBase.options).forEach(opt => {
@@ -456,7 +505,6 @@ function declararEmpate(prefijoMesa, numJugadores) {
         }
     });
 
-    // 3. Encontrar quiénes son los empatados (los que no tienen puesto todavía)
     let idsRestantes = todosIds.filter(id => !idsAsignados.has(id));
 
     if (idsRestantes.length === 0) {
@@ -468,19 +516,16 @@ function declararEmpate(prefijoMesa, numJugadores) {
         return;
     }
 
-    // 4. Matemáticas oficiales: Puntos Sobrantes / Empatados (redondeando abajo)
     let puntosTotalesMesa = 0;
     for(let i=0; i < numJugadores; i++) puntosTotalesMesa += puntosGlobales[i];
     
     let puntosRestantes = puntosTotalesMesa - puntosUsados;
     let puntosPorEmpate = Math.floor(puntosRestantes / idsRestantes.length);
 
-    // Asignar los puntos del empate
     idsRestantes.forEach(id => {
         detallesMesa.push({ idJugador: id, nombre: todosNombres[id], puntos: puntosPorEmpate, posicion: "Empate" });
     });
 
-    // 5. Ventana de confirmación para que el organizador lo verifique
     let mensaje = "⏱️ CÁLCULO DE EMPATE OFICIAL:\n\n";
     detallesMesa.forEach(d => {
         mensaje += `> ${d.nombre}: ${d.puntos} puntos (Posición: ${d.posicion})\n`;
