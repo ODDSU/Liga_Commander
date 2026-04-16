@@ -463,7 +463,7 @@ function abrirModoTV() {
             <div id="main-content">
                 <div class="bg-auras"><div class="aura aura-1"></div><div class="aura aura-2"></div></div>
                 <div class="tv-title">EMPAREJAMIENTOS</div>
-                <div class="tv-grid" style="--cols: \${cols}; --rows: \${rows};">\${htmlPods}</div>
+                <div class="tv-grid" style="--cols: ${cols}; --rows: ${rows};">${htmlPods}</div>
             </div>
         </body>
         </html>
