@@ -353,14 +353,13 @@ function abrirModoTV() {
     if(ultimasMesasGeneradas.length === 0) { alert("Genera las mesas primero."); return; }
     if (!ventanaTV || ventanaTV.closed) { ventanaTV = window.open("", "VentanaTVCommander", "width=1280,height=720"); }
 
-    // --- MATEMÁTICAS DEL GRID PARA QUE ENCAJE PERFECTO SIN SCROLL ---
+    // --- MATEMÁTICAS DEL GRID ---
     let numMesas = ultimasMesasGeneradas.length;
     let cols = 1; let rows = 1;
     
     if (numMesas === 1) { cols = 1; rows = 1; }
     else if (numMesas === 2) { cols = 2; rows = 1; }
-    else if (numMesas === 3) { cols = 3; rows = 1; }
-    else if (numMesas === 4) { cols = 2; rows = 2; }
+    else if (numMesas <= 4) { cols = 2; rows = 2; } // Si son 3 o 4 mesas, mejor 2x2 para que las cartas no sean súper alargadas
     else if (numMesas <= 6) { cols = 3; rows = 2; }
     else if (numMesas <= 8) { cols = 4; rows = 2; }
     else if (numMesas <= 9) { cols = 3; rows = 3; }
@@ -371,14 +370,12 @@ function abrirModoTV() {
     let htmlPods = "";
     ultimasMesasGeneradas.forEach((mesa, index) => {
         let delay = index * 0.1; 
-        htmlPods += `<div class="tv-pod-wrapper" style="animation-delay: ${delay}s">
-                        <div class="tv-pod">
-                            <h3>MESA ${index + 1}</h3>`;
+        htmlPods += `<div class="tv-pod" style="animation-delay: ${delay}s">
+                        <h3>MESA ${index + 1}</h3>`;
         mesa.forEach(jugador => { 
             htmlPods += `<div class="tv-player"><span class="tv-icon">⚡</span> ${jugador.nombre}</div>`; 
         });
-        htmlPods += `   </div>
-                     </div>`;
+        htmlPods += `</div>`;
     });
 
     const htmlPantallaTV = `
@@ -389,101 +386,90 @@ function abrirModoTV() {
             <title>Emparejamientos - TV</title>
             <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700;900&display=swap" rel="stylesheet">
             <style>
-                /* Ocultamos el scroll para forzar que sea un panel estático */
+                /* ELIMINAMOS SCROLL FÍSICAMENTE */
                 ::-webkit-scrollbar { display: none; }
                 body { 
                     -ms-overflow-style: none; scrollbar-width: none; background: #09090e; color: white; 
-                    font-family: 'Poppins', sans-serif; margin: 0; height: 100vh; overflow: hidden; 
-                    cursor: pointer; 
+                    font-family: 'Poppins', sans-serif; margin: 0; padding: 0;
+                    height: 100vh; width: 100vw; overflow: hidden; cursor: pointer; box-sizing: border-box;
                 }
-                .bg-auras { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; pointer-events: none; }
+                .bg-auras { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; }
                 .aura { position: absolute; border-radius: 50%; filter: blur(150px); opacity: 0.5; animation: floatAura 20s infinite alternate ease-in-out; }
                 .aura-1 { width: 60vw; height: 60vw; background: #5b21b6; top: -20%; left: -10%; }
                 .aura-2 { width: 50vw; height: 50vw; background: #1e3a8a; bottom: -20%; right: -10%; animation-delay: -5s; }
                 @keyframes floatAura { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(60px, 40px) scale(1.1); } }
                 
-                #start-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; justify-content: center; align-items: center; background: transparent; }
-                .click-prompt { font-size: 1.5rem; color: rgba(255,255,255,0.6); letter-spacing: 4px; font-weight: 300; text-transform: uppercase; text-align: center; animation: pulsePrompt 2s infinite ease-in-out; }
+                #start-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; justify-content: center; align-items: center; background: #09090e; transition: opacity 0.5s; }
+                .click-prompt { font-size: 2rem; color: rgba(255,255,255,0.8); letter-spacing: 4px; font-weight: 300; text-transform: uppercase; animation: pulsePrompt 2s infinite ease-in-out; }
                 @keyframes pulsePrompt { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
                 
                 #main-content { 
-                    padding: 3vh 3vw; 
+                    padding: 2vh 2vw; 
                     display: flex; 
                     flex-direction: column; 
                     height: 100vh; 
+                    width: 100vw;
                     box-sizing: border-box; 
                 }
                 
                 .tv-title { 
-                    font-size: 6vh; font-weight: 900; margin-bottom: 3vh; text-align: center; 
+                    font-size: min(5vh, 4vw); font-weight: 900; margin: 0 0 2vh 0; text-align: center; 
                     background: linear-gradient(to right, #c084fc, #60a5fa, #c084fc); background-size: 200% auto; 
                     -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 8px; 
-                    filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.4)); animation: shineTitle 4s linear infinite; 
-                    opacity: 0; transform: translateY(-20px); transition: all 1s ease-out; flex-shrink: 0;
+                    flex-shrink: 0; height: 8vh; display: flex; justify-content: center; align-items: center;
                 }
                 .is-playing .tv-title { opacity: 1; transform: translateY(0); }
-                @keyframes shineTitle { to { background-position: 200% center; } }
                 
-                /* GRID DINÁMICO RECALCULADO EN JS */
+                /* GRID BLINDADO */
                 .tv-grid { 
                     display: grid; 
-                    grid-template-columns: repeat(${cols}, 1fr); 
-                    grid-template-rows: repeat(${rows}, 1fr); 
-                    gap: 2vmin; 
+                    grid-template-columns: repeat(var(--cols), 1fr); 
+                    grid-template-rows: repeat(var(--rows), 1fr); 
+                    gap: 1.5vh; 
                     flex-grow: 1; 
-                    width: 100%; 
-                    min-height: 0; /* Permite que las cajas se aplasten si es necesario */
+                    min-height: 0; /* CRUCIAL: Evita que los hijos estiren el contenedor */
+                    height: 100%;
+                    width: 100%;
                 }
-                
-                /* CADA MESA SE CONVIERTE EN UN CONTENEDOR CQ */
-                .tv-pod-wrapper {
-                    opacity: 0; transform: scale(0.8);
-                    min-width: 0; min-height: 0; 
-                    container-type: size; /* LA MAGIA: Activa las unidades "cqmin" */
-                }
-                .is-playing .tv-pod-wrapper { animation: cardEnter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-                @keyframes cardEnter { to { opacity: 1; transform: scale(1); } }
                 
                 .tv-pod { 
                     background: rgba(15, 15, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); 
-                    border-radius: 3cqmin; padding: 4cqmin 6cqmin; 
-                    display: flex; flex-direction: column; justify-content: center;
-                    text-align: center; box-shadow: 0 15px 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(139, 92, 246, 0.15); 
+                    border-radius: 20px; padding: 1vh 2vw; 
+                    display: flex; flex-direction: column; justify-content: center; align-items: center;
+                    text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5), inset 0 0 20px rgba(139, 92, 246, 0.15); 
                     position: relative; overflow: hidden; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
-                    width: 100%; height: 100%; box-sizing: border-box;
+                    min-height: 0; min-width: 0; /* CRUCIAL: Obliga a la tarjeta a encogerse si hace falta */
+                    opacity: 0; transform: scale(0.9);
                 }
-                .tv-pod::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1.5cqmin; background: linear-gradient(90deg, #f59e0b, #d97706); box-shadow: 0 0 10px #f59e0b; }
+                .is-playing .tv-pod { animation: cardEnter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+                @keyframes cardEnter { to { opacity: 1; transform: scale(1); } }
                 
-                /* Las fuentes ahora escalan con el alto o ancho de la caja (lo que sea más pequeño) */
+                .tv-pod::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: linear-gradient(90deg, #f59e0b, #d97706); }
+                
+                /* FUENTES CALCULADAS MATEMÁTICAMENTE SEGÚN LAS FILAS */
                 .tv-pod h3 { 
-                    font-size: 10cqmin; color: #f59e0b; margin: 0 0 4cqmin 0; font-weight: 900; 
-                    letter-spacing: 2px; text-shadow: 0 0 10px rgba(245, 158, 11, 0.3); 
+                    /* Dividimos el alto máximo (14vh) entre las filas para que nunca desborde */
+                    font-size: calc(min(3vw, 14vh / var(--rows))); 
+                    color: #f59e0b; margin: 0 0 calc(1.5vh / var(--rows)) 0; font-weight: 900; 
+                    letter-spacing: 2px; white-space: nowrap; 
                 }
                 .tv-player { 
-                    font-size: 7cqmin; color: #f8fafc; margin: 1.5cqmin 0; font-weight: 700; 
-                    border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1cqmin; 
-                    display: flex; align-items: center; justify-content: center; gap: 2cqmin; 
-                    text-shadow: 0 2px 5px rgba(0,0,0,0.5); 
+                    /* Mismo cálculo para los nombres */
+                    font-size: calc(min(2.5vw, 11vh / var(--rows))); 
+                    color: #f8fafc; margin: calc(0.5vh / var(--rows)) 0; font-weight: 700; 
+                    display: flex; align-items: center; justify-content: center; gap: 1vw; 
+                    /* PROTECCIÓN DE NOMBRES LARGOS: */
+                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 95%;
                 }
-                .tv-player:last-child { border-bottom: none; }
-                .tv-icon { color: #8b5cf6; font-size: 7cqmin; filter: drop-shadow(0 0 5px rgba(139,92,246,0.6)); }
-                
-                /* Respaldo de seguridad si el navegador de la Smart TV es muy viejo (anterior a 2022) */
-                @supports not (container-type: size) {
-                    .tv-pod { padding: 1.5vmin; border-radius: 1.5vmin; }
-                    .tv-pod::before { height: 4px; }
-                    .tv-pod h3 { font-size: min(3vw, 4vh); margin-bottom: 2vh; }
-                    .tv-player { font-size: min(2vw, 3vh); margin: 1vh 0; gap: 1vw; }
-                    .tv-icon { font-size: min(2vw, 3vh); }
-                }
+                .tv-icon { color: #8b5cf6; font-size: calc(min(2.5vw, 11vh / var(--rows))); }
             </style>
         </head>
         <body onclick="this.classList.add('is-playing'); document.getElementById('start-overlay').style.display='none'; this.style.cursor='default';">
-            <div id="start-overlay"><div class="click-prompt">Haz clic en cualquier parte para iniciar...</div></div>
+            <div id="start-overlay"><div class="click-prompt">Haz clic para iniciar proyección</div></div>
             <div id="main-content">
                 <div class="bg-auras"><div class="aura aura-1"></div><div class="aura aura-2"></div></div>
                 <div class="tv-title">EMPAREJAMIENTOS</div>
-                <div class="tv-grid">${htmlPods}</div>
+                <div class="tv-grid" style="--cols: ${cols}; --rows: ${rows};">${htmlPods}</div>
             </div>
         </body>
         </html>
@@ -492,6 +478,7 @@ function abrirModoTV() {
     ventanaTV.document.write(htmlPantallaTV);
     ventanaTV.document.close();
     ventanaTV.focus();
+}
 }
 }
 
