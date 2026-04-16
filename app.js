@@ -349,17 +349,17 @@ function forzarJugadorEnMesa(index) {
     }
 }
 
+// --- MODO TV DINÁMICO MEJORADO ---
 function abrirModoTV() {
     if(ultimasMesasGeneradas.length === 0) { alert("Genera las mesas primero."); return; }
     if (!ventanaTV || ventanaTV.closed) { ventanaTV = window.open("", "VentanaTVCommander", "width=1280,height=720"); }
 
-    // --- MATEMÁTICAS DEL GRID ---
     let numMesas = ultimasMesasGeneradas.length;
     let cols = 1; let rows = 1;
     
     if (numMesas === 1) { cols = 1; rows = 1; }
     else if (numMesas === 2) { cols = 2; rows = 1; }
-    else if (numMesas <= 4) { cols = 2; rows = 2; } // Si son 3 o 4 mesas, mejor 2x2 para que las cartas no sean súper alargadas
+    else if (numMesas <= 4) { cols = 2; rows = 2; } 
     else if (numMesas <= 6) { cols = 3; rows = 2; }
     else if (numMesas <= 8) { cols = 4; rows = 2; }
     else if (numMesas <= 9) { cols = 3; rows = 3; }
@@ -386,7 +386,6 @@ function abrirModoTV() {
             <title>Emparejamientos - TV</title>
             <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700;900&display=swap" rel="stylesheet">
             <style>
-                /* ELIMINAMOS SCROLL FÍSICAMENTE */
                 ::-webkit-scrollbar { display: none; }
                 body { 
                     -ms-overflow-style: none; scrollbar-width: none; background: #09090e; color: white; 
@@ -420,14 +419,13 @@ function abrirModoTV() {
                 }
                 .is-playing .tv-title { opacity: 1; transform: translateY(0); }
                 
-                /* GRID BLINDADO */
                 .tv-grid { 
                     display: grid; 
                     grid-template-columns: repeat(var(--cols), 1fr); 
                     grid-template-rows: repeat(var(--rows), 1fr); 
                     gap: 1.5vh; 
                     flex-grow: 1; 
-                    min-height: 0; /* CRUCIAL: Evita que los hijos estiren el contenedor */
+                    min-height: 0; 
                     height: 100%;
                     width: 100%;
                 }
@@ -438,7 +436,7 @@ function abrirModoTV() {
                     display: flex; flex-direction: column; justify-content: center; align-items: center;
                     text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5), inset 0 0 20px rgba(139, 92, 246, 0.15); 
                     position: relative; overflow: hidden; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
-                    min-height: 0; min-width: 0; /* CRUCIAL: Obliga a la tarjeta a encogerse si hace falta */
+                    min-height: 0; min-width: 0; 
                     opacity: 0; transform: scale(0.9);
                 }
                 .is-playing .tv-pod { animation: cardEnter 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
@@ -446,19 +444,15 @@ function abrirModoTV() {
                 
                 .tv-pod::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: linear-gradient(90deg, #f59e0b, #d97706); }
                 
-                /* FUENTES CALCULADAS MATEMÁTICAMENTE SEGÚN LAS FILAS */
                 .tv-pod h3 { 
-                    /* Dividimos el alto máximo (14vh) entre las filas para que nunca desborde */
                     font-size: calc(min(3vw, 14vh / var(--rows))); 
                     color: #f59e0b; margin: 0 0 calc(1.5vh / var(--rows)) 0; font-weight: 900; 
                     letter-spacing: 2px; white-space: nowrap; 
                 }
                 .tv-player { 
-                    /* Mismo cálculo para los nombres */
                     font-size: calc(min(2.5vw, 11vh / var(--rows))); 
                     color: #f8fafc; margin: calc(0.5vh / var(--rows)) 0; font-weight: 700; 
                     display: flex; align-items: center; justify-content: center; gap: 1vw; 
-                    /* PROTECCIÓN DE NOMBRES LARGOS: */
                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 95%;
                 }
                 .tv-icon { color: #8b5cf6; font-size: calc(min(2.5vw, 11vh / var(--rows))); }
@@ -469,7 +463,7 @@ function abrirModoTV() {
             <div id="main-content">
                 <div class="bg-auras"><div class="aura aura-1"></div><div class="aura aura-2"></div></div>
                 <div class="tv-title">EMPAREJAMIENTOS</div>
-                <div class="tv-grid" style="--cols: ${cols}; --rows: ${rows};">${htmlPods}</div>
+                <div class="tv-grid" style="--cols: \${cols}; --rows: \${rows};">\${htmlPods}</div>
             </div>
         </body>
         </html>
@@ -478,8 +472,6 @@ function abrirModoTV() {
     ventanaTV.document.write(htmlPantallaTV);
     ventanaTV.document.close();
     ventanaTV.focus();
-}
-}
 }
 
 function crearMesaManual() {
@@ -549,7 +541,7 @@ function guardarResultadoMesa(prefijoMesa, numJugadores) {
     procesarGuardado(detallesMesa, prefijoMesa.includes('pod') ? prefijoMesa : prefijoMesa);
 }
 
-// --- NUEVA LÓGICA: CALCULADORA OFICIAL DE EMPATES ---
+// --- LÓGICA DE EMPATES OFICIALES ---
 function declararEmpate(prefijoMesa, numJugadores) {
     let idsAsignados = new Set();
     let detallesMesa = [];
