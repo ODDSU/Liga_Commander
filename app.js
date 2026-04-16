@@ -349,7 +349,7 @@ function forzarJugadorEnMesa(index) {
     }
 }
 
-// --- MODO TV DINÁMICO MEJORADO ---
+// --- MODO TV DINÁMICO MEJORADO Y BLINDADO ---
 function abrirModoTV() {
     if(ultimasMesasGeneradas.length === 0) { alert("Genera las mesas primero."); return; }
     if (!ventanaTV || ventanaTV.closed) { ventanaTV = window.open("", "VentanaTVCommander", "width=1280,height=720"); }
@@ -370,16 +370,14 @@ function abrirModoTV() {
     let htmlPods = "";
     ultimasMesasGeneradas.forEach((mesa, index) => {
         let delay = index * 0.1; 
-        htmlPods += `<div class="tv-pod" style="animation-delay: ${delay}s">
-                        <h3>MESA ${index + 1}</h3>`;
+        htmlPods += "<div class='tv-pod' style='animation-delay: " + delay + "s'><h3>MESA " + (index + 1) + "</h3>";
         mesa.forEach(jugador => { 
-            htmlPods += `<div class="tv-player"><span class="tv-icon">⚡</span> ${jugador.nombre}</div>`; 
+            htmlPods += "<div class='tv-player'><span class='tv-icon'>⚡</span> " + jugador.nombre + "</div>"; 
         });
-        htmlPods += `</div>`;
+        htmlPods += "</div>";
     });
 
-    const htmlPantallaTV = `
-        <!DOCTYPE html>
+    const htmlPantallaTV = `<!DOCTYPE html>
         <html lang="es">
         <head>
             <meta charset="UTF-8">
@@ -463,11 +461,10 @@ function abrirModoTV() {
             <div id="main-content">
                 <div class="bg-auras"><div class="aura aura-1"></div><div class="aura aura-2"></div></div>
                 <div class="tv-title">EMPAREJAMIENTOS</div>
-                <div class="tv-grid" style="--cols: ${cols}; --rows: ${rows};">${htmlPods}</div>
+                <div class="tv-grid" style="--cols: ` + cols + `; --rows: ` + rows + `;">` + htmlPods + `</div>
             </div>
         </body>
-        </html>
-    `;
+        </html>`;
     ventanaTV.document.open();
     ventanaTV.document.write(htmlPantallaTV);
     ventanaTV.document.close();
