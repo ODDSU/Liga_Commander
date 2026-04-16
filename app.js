@@ -353,12 +353,32 @@ function abrirModoTV() {
     if(ultimasMesasGeneradas.length === 0) { alert("Genera las mesas primero."); return; }
     if (!ventanaTV || ventanaTV.closed) { ventanaTV = window.open("", "VentanaTVCommander", "width=1280,height=720"); }
 
+    // --- MATEMÁTICAS DEL GRID PARA QUE ENCAJE PERFECTO SIN SCROLL ---
+    let numMesas = ultimasMesasGeneradas.length;
+    let cols = 1; let rows = 1;
+    
+    if (numMesas === 1) { cols = 1; rows = 1; }
+    else if (numMesas === 2) { cols = 2; rows = 1; }
+    else if (numMesas === 3) { cols = 3; rows = 1; }
+    else if (numMesas === 4) { cols = 2; rows = 2; }
+    else if (numMesas <= 6) { cols = 3; rows = 2; }
+    else if (numMesas <= 8) { cols = 4; rows = 2; }
+    else if (numMesas <= 9) { cols = 3; rows = 3; }
+    else if (numMesas <= 12) { cols = 4; rows = 3; }
+    else if (numMesas <= 16) { cols = 4; rows = 4; }
+    else { cols = 5; rows = Math.ceil(numMesas / 5); }
+
     let htmlPods = "";
     ultimasMesasGeneradas.forEach((mesa, index) => {
-        let delay = index * 0.15; 
-        htmlPods += `<div class="tv-pod" style="animation-delay: ${delay}s"><h3>MESA ${index + 1}</h3>`;
-        mesa.forEach(jugador => { htmlPods += `<div class="tv-player"><span class="tv-icon">⚡</span> ${jugador.nombre}</div>`; });
-        htmlPods += `</div>`;
+        let delay = index * 0.1; 
+        htmlPods += `<div class="tv-pod-wrapper" style="animation-delay: ${delay}s">
+                        <div class="tv-pod">
+                            <h3>MESA ${index + 1}</h3>`;
+        mesa.forEach(jugador => { 
+            htmlPods += `<div class="tv-player"><span class="tv-icon">⚡</span> ${jugador.nombre}</div>`; 
+        });
+        htmlPods += `   </div>
+                     </div>`;
     });
 
     const htmlPantallaTV = `
@@ -369,29 +389,93 @@ function abrirModoTV() {
             <title>Emparejamientos - TV</title>
             <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;700;900&display=swap" rel="stylesheet">
             <style>
+                /* Ocultamos el scroll para forzar que sea un panel estático */
                 ::-webkit-scrollbar { display: none; }
-                body { -ms-overflow-style: none; scrollbar-width: none; background: #09090e; color: white; font-family: 'Poppins', sans-serif; margin: 0; min-height: 100vh; overflow-y: auto; overflow-x: hidden; position: relative; cursor: pointer; }
+                body { 
+                    -ms-overflow-style: none; scrollbar-width: none; background: #09090e; color: white; 
+                    font-family: 'Poppins', sans-serif; margin: 0; height: 100vh; overflow: hidden; 
+                    cursor: pointer; 
+                }
                 .bg-auras { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; pointer-events: none; }
                 .aura { position: absolute; border-radius: 50%; filter: blur(150px); opacity: 0.5; animation: floatAura 20s infinite alternate ease-in-out; }
                 .aura-1 { width: 60vw; height: 60vw; background: #5b21b6; top: -20%; left: -10%; }
                 .aura-2 { width: 50vw; height: 50vw; background: #1e3a8a; bottom: -20%; right: -10%; animation-delay: -5s; }
                 @keyframes floatAura { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(60px, 40px) scale(1.1); } }
-                #start-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; }
+                
+                #start-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; justify-content: center; align-items: center; background: transparent; }
                 .click-prompt { font-size: 1.5rem; color: rgba(255,255,255,0.6); letter-spacing: 4px; font-weight: 300; text-transform: uppercase; text-align: center; animation: pulsePrompt 2s infinite ease-in-out; }
                 @keyframes pulsePrompt { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
-                #main-content { padding: 60px 40px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; position: relative; }
-                .tv-title { font-size: 5rem; font-weight: 900; margin-bottom: 70px; text-align: center; background: linear-gradient(to right, #c084fc, #60a5fa, #c084fc); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 8px; filter: drop-shadow(0 0 25px rgba(139, 92, 246, 0.4)); animation: shineTitle 4s linear infinite; opacity: 0; transform: translateY(-30px); transition: all 1s ease-out; }
+                
+                #main-content { 
+                    padding: 3vh 3vw; 
+                    display: flex; 
+                    flex-direction: column; 
+                    height: 100vh; 
+                    box-sizing: border-box; 
+                }
+                
+                .tv-title { 
+                    font-size: 6vh; font-weight: 900; margin-bottom: 3vh; text-align: center; 
+                    background: linear-gradient(to right, #c084fc, #60a5fa, #c084fc); background-size: 200% auto; 
+                    -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 8px; 
+                    filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.4)); animation: shineTitle 4s linear infinite; 
+                    opacity: 0; transform: translateY(-20px); transition: all 1s ease-out; flex-shrink: 0;
+                }
                 .is-playing .tv-title { opacity: 1; transform: translateY(0); }
                 @keyframes shineTitle { to { background-position: 200% center; } }
-                .tv-grid { display: flex; flex-wrap: wrap; gap: 50px; justify-content: center; width: 100%; max-width: 1900px; }
-                .tv-pod { background: rgba(15, 15, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 30px; padding: 50px 40px; min-width: 400px; text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,0.6), inset 0 0 40px rgba(139, 92, 246, 0.15); position: relative; overflow: hidden; backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); opacity: 0; transform: translateY(100px) scale(0.9); }
-                .is-playing .tv-pod { animation: cardEnter 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-                @keyframes cardEnter { to { opacity: 1; transform: translateY(0) scale(1); } }
-                .tv-pod::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: linear-gradient(90deg, #f59e0b, #d97706); box-shadow: 0 0 20px #f59e0b; }
-                .tv-pod h3 { font-size: 3rem; color: #f59e0b; margin: 0 0 40px 0; font-weight: 900; letter-spacing: 3px; text-shadow: 0 0 15px rgba(245, 158, 11, 0.3); }
-                .tv-player { font-size: 2.4rem; color: #f8fafc; margin: 25px 0; font-weight: 700; border-bottom: 2px solid rgba(255,255,255,0.05); padding-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 15px; text-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+                
+                /* GRID DINÁMICO RECALCULADO EN JS */
+                .tv-grid { 
+                    display: grid; 
+                    grid-template-columns: repeat(${cols}, 1fr); 
+                    grid-template-rows: repeat(${rows}, 1fr); 
+                    gap: 2vmin; 
+                    flex-grow: 1; 
+                    width: 100%; 
+                    min-height: 0; /* Permite que las cajas se aplasten si es necesario */
+                }
+                
+                /* CADA MESA SE CONVIERTE EN UN CONTENEDOR CQ */
+                .tv-pod-wrapper {
+                    opacity: 0; transform: scale(0.8);
+                    min-width: 0; min-height: 0; 
+                    container-type: size; /* LA MAGIA: Activa las unidades "cqmin" */
+                }
+                .is-playing .tv-pod-wrapper { animation: cardEnter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+                @keyframes cardEnter { to { opacity: 1; transform: scale(1); } }
+                
+                .tv-pod { 
+                    background: rgba(15, 15, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); 
+                    border-radius: 3cqmin; padding: 4cqmin 6cqmin; 
+                    display: flex; flex-direction: column; justify-content: center;
+                    text-align: center; box-shadow: 0 15px 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(139, 92, 246, 0.15); 
+                    position: relative; overflow: hidden; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
+                    width: 100%; height: 100%; box-sizing: border-box;
+                }
+                .tv-pod::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 1.5cqmin; background: linear-gradient(90deg, #f59e0b, #d97706); box-shadow: 0 0 10px #f59e0b; }
+                
+                /* Las fuentes ahora escalan con el alto o ancho de la caja (lo que sea más pequeño) */
+                .tv-pod h3 { 
+                    font-size: 10cqmin; color: #f59e0b; margin: 0 0 4cqmin 0; font-weight: 900; 
+                    letter-spacing: 2px; text-shadow: 0 0 10px rgba(245, 158, 11, 0.3); 
+                }
+                .tv-player { 
+                    font-size: 7cqmin; color: #f8fafc; margin: 1.5cqmin 0; font-weight: 700; 
+                    border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1cqmin; 
+                    display: flex; align-items: center; justify-content: center; gap: 2cqmin; 
+                    text-shadow: 0 2px 5px rgba(0,0,0,0.5); 
+                }
                 .tv-player:last-child { border-bottom: none; }
-                .tv-icon { color: #8b5cf6; font-size: 2rem; filter: drop-shadow(0 0 10px rgba(139,92,246,0.6)); }
+                .tv-icon { color: #8b5cf6; font-size: 7cqmin; filter: drop-shadow(0 0 5px rgba(139,92,246,0.6)); }
+                
+                /* Respaldo de seguridad si el navegador de la Smart TV es muy viejo (anterior a 2022) */
+                @supports not (container-type: size) {
+                    .tv-pod { padding: 1.5vmin; border-radius: 1.5vmin; }
+                    .tv-pod::before { height: 4px; }
+                    .tv-pod h3 { font-size: min(3vw, 4vh); margin-bottom: 2vh; }
+                    .tv-player { font-size: min(2vw, 3vh); margin: 1vh 0; gap: 1vw; }
+                    .tv-icon { font-size: min(2vw, 3vh); }
+                }
             </style>
         </head>
         <body onclick="this.classList.add('is-playing'); document.getElementById('start-overlay').style.display='none'; this.style.cursor='default';">
@@ -408,6 +492,7 @@ function abrirModoTV() {
     ventanaTV.document.write(htmlPantallaTV);
     ventanaTV.document.close();
     ventanaTV.focus();
+}
 }
 
 function crearMesaManual() {
