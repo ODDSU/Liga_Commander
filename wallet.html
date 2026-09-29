@@ -248,21 +248,17 @@
     <div id="toast-container" class="toast-container"></div>
 
     <script>
-    // =========================================
-    //  CONFIGURACIÓN
-    // =========================================
-    //
-    // Pega aquí la URL de tu Google Apps Script (ver guía de setup):
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-cGTU1iR4cRqs9-TxoiGq-wFXYR9bKPALKaPuPpKCZcR8F_Efd3cyiayWKLhaWqI/exec';
+    const SCRIPT_URL = '';
 
     // =========================================
     //  LÓGICA PRINCIPAL
     // =========================================
     const params = new URLSearchParams(window.location.search);
     const jugadorId = params.get('jugador') || params.get('j');
+    const sheetParam = params.get('s'); // ID de hoja codificado en base64
 
     document.addEventListener('DOMContentLoaded', () => {
-        if (!SCRIPT_URL) {
+        if (!SCRIPT_URL && !sheetParam) {
             mostrarSetup();
             return;
         }
@@ -277,26 +273,76 @@
 
     async function cargarDatos() {
         try {
-            const url = `${SCRIPT_URL}?jugador=${encodeURIComponent(jugadorId)}`;
-            const response = await fetch(url);
+            let movimientos;
 
-            if (!response.ok) throw new Error('No se pudo conectar con el servidor.');
+            if (SCRIPT_URL) {
+                // MODO 1: Apps Script
+                const url = `${SCRIPT_URL}?jugador=${encodeURIComponent(jugadorId)}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('No se pudo conectar con el servidor.');
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                movimientos = data.movimientos || [];
+            } else if (sheetParam) {
+                // MODO 2: Link codificado — decodificar ID de la hoja
+                const sheetId = atob(sheetParam);
+                const cacheBust = `&_t=${Date.now()}`;
+                const url = `https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?output=csv${cacheBust}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('No se pudo cargar la hoja.');
+                const csvText = await response.text();
+                const todos = parseCSV(csvText);
+                movimientos = todos.filter(m =>
+                    m.jugador_id.toLowerCase() === jugadorId.toLowerCase()
+                );
+            }
 
-            const data = await response.json();
-
-            if (data.error) throw new Error(data.error);
-
-            if (!data.movimientos || data.movimientos.length === 0) {
+            if (!movimientos || movimientos.length === 0) {
                 mostrarJugadorNoEncontrado();
                 return;
             }
 
-            renderWallet(data.movimientos);
+            renderWallet(movimientos);
 
         } catch (error) {
             console.error('Error cargando datos:', error);
             mostrarError(error.message);
         }
+    }
+
+    // Parser CSV (para modo link codificado)
+    function parseCSV(text) {
+        const lines = text.trim().split('\n');
+        if (lines.length < 2) return [];
+        const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+        const movimientos = [];
+        for (let i = 1; i < lines.length; i++) {
+            const values = parseCSVLine(lines[i]);
+            if (values.length < 4) continue;
+            const obj = {};
+            headers.forEach((h, idx) => { obj[h] = values[idx] ? values[idx].trim() : ''; });
+            movimientos.push({
+                jugador_id: obj['jugador_id'] || obj['id'] || '',
+                nombre: obj['nombre'] || '',
+                fecha: obj['fecha'] || '',
+                concepto: obj['concepto'] || obj['motivo'] || '',
+                tipo: (obj['tipo'] || '').toLowerCase(),
+                monto: parseFloat(obj['monto'] || '0') || 0
+            });
+        }
+        return movimientos;
+    }
+
+    function parseCSVLine(line) {
+        const result = []; let current = ''; let inQ = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') { if (inQ && line[i+1] === '"') { current += '"'; i++; } else { inQ = !inQ; } }
+            else if (ch === ',' && !inQ) { result.push(current); current = ''; }
+            else { current += ch; }
+        }
+        result.push(current);
+        return result.map(v => v.replace(/^"|"$/g, ''));
     }
 
     function renderWallet(movimientos) {
