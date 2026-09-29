@@ -17,10 +17,12 @@
             background-color: var(--bg-dark);
             box-sizing: border-box;
         }
+
         .wallet-container {
             width: 100%; max-width: 700px;
             animation: fadeUp 0.6s ease-out backwards;
         }
+
         /* CABECERA */
         .wallet-header {
             text-align: center; margin-bottom: 30px;
@@ -36,8 +38,488 @@
             color: var(--text-muted); font-size: 0.85rem; font-weight: 600;
             letter-spacing: 3px; text-transform: uppercase; margin: 0;
         }
+
         /* TARJETA DE SALDO PRINCIPAL */
         .balance-card {
             background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(139, 92, 246, 0.08));
             border: 1px solid rgba(245, 158, 11, 0.25);
             backdrop-filter: blur(25px); border-radius: 24px;
+            padding: 30px; text-align: center; margin-bottom: 25px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+            position: relative; overflow: hidden;
+        }
+        .balance-card::before {
+            content: ''; position: absolute; top: 0; left: 0;
+            width: 100%; height: 4px;
+            background: linear-gradient(to right, #f59e0b, #8b5cf6);
+        }
+        .balance-label {
+            font-size: 0.8rem; color: var(--text-muted); font-weight: 700;
+            text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px;
+        }
+        .balance-amount {
+            font-size: 3.5rem; font-weight: 900; color: #fcd34d;
+            text-shadow: 0 0 30px rgba(245, 158, 11, 0.3);
+            margin: 0; line-height: 1.2;
+        }
+        .balance-name {
+            font-size: 1.1rem; font-weight: 600; color: white; margin-top: 10px;
+        }
+
+        /* TARJETAS DE STATS */
+        .stats-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;
+        }
+        .stat-card {
+            background: rgba(15, 15, 20, 0.55); border: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px); border-radius: 16px; padding: 20px;
+            text-align: center;
+        }
+        .stat-card .stat-icon { font-size: 1.8rem; margin-bottom: 5px; }
+        .stat-card .stat-value {
+            font-size: 1.6rem; font-weight: 900; color: white; margin: 0;
+        }
+        .stat-card .stat-label {
+            font-size: 0.7rem; color: var(--text-muted); font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px;
+        }
+        .stat-card.ingresos { border-left: 3px solid var(--success); }
+        .stat-card.ingresos .stat-value { color: #34d399; }
+        .stat-card.gastos { border-left: 3px solid var(--danger); }
+        .stat-card.gastos .stat-value { color: #fca5a5; }
+
+        /* HISTORIAL DE MOVIMIENTOS */
+        .history-card {
+            background: rgba(15, 15, 20, 0.55); border: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px); border-radius: 24px; padding: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .history-card h2 {
+            font-size: 1.1rem; margin: 0 0 20px 0; color: white;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .movement {
+            display: flex; align-items: center; gap: 15px;
+            padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: background 0.2s;
+        }
+        .movement:last-child { border-bottom: none; }
+        .movement:hover { background: rgba(255,255,255,0.02); border-radius: 12px; padding: 14px 10px; margin: 0 -10px; }
+
+        .mov-icon {
+            width: 42px; height: 42px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; flex-shrink: 0;
+        }
+        .mov-icon.ingreso { background: rgba(16, 185, 129, 0.15); }
+        .mov-icon.gasto { background: rgba(239, 68, 68, 0.15); }
+
+        .mov-info { flex: 1; min-width: 0; }
+        .mov-concepto {
+            font-size: 0.9rem; font-weight: 600; color: white;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .mov-fecha {
+            font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;
+            font-weight: 600; letter-spacing: 0.5px;
+        }
+
+        .mov-monto { font-weight: 800; font-size: 1rem; flex-shrink: 0; }
+        .mov-monto.positivo { color: #34d399; }
+        .mov-monto.negativo { color: #fca5a5; }
+
+        /* ESTADO VACÍO / ERROR / CARGA */
+        .state-message {
+            text-align: center; padding: 60px 20px;
+            animation: fadeUp 0.5s ease-out;
+        }
+        .state-message .state-icon { font-size: 4rem; margin-bottom: 15px; }
+        .state-message h2 {
+            color: white; font-size: 1.3rem; margin: 0 0 10px 0;
+            justify-content: center;
+        }
+        .state-message p { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; margin: 0; }
+
+        .loading-spinner {
+            width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary); border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 0 auto 20px auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* BOTÓN VOLVER */
+        .back-link {
+            display: inline-flex; align-items: center; gap: 8px;
+            color: var(--text-muted); text-decoration: none; font-weight: 600;
+            font-size: 0.85rem; margin-bottom: 20px; padding: 8px 16px;
+            background: rgba(0,0,0,0.3); border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05); transition: 0.2s;
+        }
+        .back-link:hover { color: white; background: rgba(255,255,255,0.05); transform: translateX(-3px); }
+
+        /* FILTRO */
+        .filter-row {
+            display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .filter-btn {
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text-muted); padding: 8px 16px; border-radius: 10px;
+            font-weight: 600; font-size: 0.75rem; cursor: pointer; font-family: inherit;
+            text-transform: uppercase; letter-spacing: 1px; transition: 0.2s;
+        }
+        .filter-btn:hover { background: rgba(255,255,255,0.05); color: white; }
+        .filter-btn.active {
+            background: rgba(139, 92, 246, 0.2); color: white;
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+
+        /* FOOTER */
+        .wallet-footer {
+            text-align: center; margin-top: 30px; padding: 15px;
+            color: #475569; font-size: 0.75rem; font-weight: 600;
+        }
+        .wallet-footer a { color: var(--primary); text-decoration: none; }
+
+        /* RESPONSIVE */
+        @media (max-width: 500px) {
+            .balance-amount { font-size: 2.5rem; }
+            .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .stat-card { padding: 15px; }
+            .stat-card .stat-value { font-size: 1.3rem; }
+            .wallet-header h1 { font-size: 2rem; }
+        }
+
+        @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CONFIGURACIÓN INICIAL (sin sheet conectado) */
+        .setup-card {
+            background: rgba(15, 15, 20, 0.55); border: 1px solid rgba(139, 92, 246, 0.2);
+            backdrop-filter: blur(20px); border-radius: 24px; padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); margin-bottom: 25px;
+        }
+        .setup-card h2 { color: var(--primary); justify-content: center; }
+        .setup-card code {
+            background: rgba(0,0,0,0.5); padding: 3px 8px; border-radius: 6px;
+            font-size: 0.85rem; color: #fbbf24; word-break: break-all;
+        }
+        .setup-card .step {
+            background: rgba(0,0,0,0.3); border-left: 3px solid var(--primary);
+            padding: 15px; border-radius: 0 12px 12px 0; margin-bottom: 12px;
+        }
+        .setup-card .step-number {
+            color: var(--primary); font-weight: 900; font-size: 0.8rem;
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;
+        }
+        .setup-card .step p { color: #cbd5e1; font-size: 0.85rem; margin: 0; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-auras">
+        <div class="aura aura-1"></div>
+        <div class="aura aura-2"></div>
+        <div class="aura aura-3"></div>
+    </div>
+
+    <div class="wallet-container">
+        <a href="index.html" class="back-link">⬅️ Volver al Hub</a>
+
+        <div class="wallet-header">
+            <h1>💰 PANDA WALLET</h1>
+            <p class="subtitle">Pool de Premios Commander</p>
+        </div>
+
+        <div id="wallet-content">
+            <!-- El contenido se inyecta dinámicamente -->
+            <div class="state-message">
+                <div class="loading-spinner"></div>
+                <h2>Cargando tu wallet...</h2>
+                <p>Conectando con la base de datos de premios</p>
+            </div>
+        </div>
+
+        <div class="wallet-footer">
+            🐼 Panda Tools — <a href="index.html">Volver al Hub</a>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+    // =========================================
+    //  CONFIGURACIÓN
+    // =========================================
+    //
+    // Pega aquí la URL de tu Google Apps Script (ver guía de setup):
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx-cGTU1iR4cRqs9-TxoiGq-wFXYR9bKPALKaPuPpKCZcR8F_Efd3cyiayWKLhaWqI/exec';
+
+    // =========================================
+    //  LÓGICA PRINCIPAL
+    // =========================================
+    const params = new URLSearchParams(window.location.search);
+    const jugadorId = params.get('jugador') || params.get('j');
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!SCRIPT_URL) {
+            mostrarSetup();
+            return;
+        }
+
+        if (!jugadorId) {
+            mostrarErrorNoJugador();
+            return;
+        }
+
+        cargarDatos();
+    });
+
+    async function cargarDatos() {
+        try {
+            const url = `${SCRIPT_URL}?jugador=${encodeURIComponent(jugadorId)}`;
+            const response = await fetch(url);
+
+            if (!response.ok) throw new Error('No se pudo conectar con el servidor.');
+
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+
+            if (!data.movimientos || data.movimientos.length === 0) {
+                mostrarJugadorNoEncontrado();
+                return;
+            }
+
+            renderWallet(data.movimientos);
+
+        } catch (error) {
+            console.error('Error cargando datos:', error);
+            mostrarError(error.message);
+        }
+    }
+
+    function renderWallet(movimientos) {
+        const nombre = movimientos[0].nombre || jugadorId;
+
+        // Calcular totales
+        let totalIngresos = 0;
+        let totalGastos = 0;
+
+        movimientos.forEach(m => {
+            if (m.tipo === 'ingreso' || m.tipo === 'premio') {
+                totalIngresos += m.monto;
+            } else if (m.tipo === 'gasto' || m.tipo === 'canje' || m.tipo === 'canjeo') {
+                totalGastos += m.monto;
+            }
+        });
+
+        const saldo = totalIngresos - totalGastos;
+
+        // Ordenar por fecha (más reciente primero)
+        movimientos.sort((a, b) => {
+            const dateA = new Date(a.fecha);
+            const dateB = new Date(b.fecha);
+            return dateB - dateA;
+        });
+
+        const content = document.getElementById('wallet-content');
+        content.innerHTML = `
+            <!-- TARJETA DE SALDO -->
+            <div class="balance-card">
+                <div class="balance-label">Saldo disponible</div>
+                <div class="balance-amount">${saldo.toFixed(2)}€</div>
+                <div class="balance-name">👤 ${escapeHTML(nombre)}</div>
+            </div>
+
+            <!-- STATS -->
+            <div class="stats-row">
+                <div class="stat-card ingresos">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-value">+${totalIngresos.toFixed(2)}€</div>
+                    <div class="stat-label">Total ganado</div>
+                </div>
+                <div class="stat-card gastos">
+                    <div class="stat-icon">🛒</div>
+                    <div class="stat-value">-${totalGastos.toFixed(2)}€</div>
+                    <div class="stat-label">Total gastado</div>
+                </div>
+            </div>
+
+            <!-- HISTORIAL -->
+            <div class="history-card">
+                <h2>📋 Historial de Movimientos</h2>
+
+                <div class="filter-row">
+                    <button class="filter-btn active" onclick="filtrar('todos', this)">Todos</button>
+                    <button class="filter-btn" onclick="filtrar('ingreso', this)">💰 Ingresos</button>
+                    <button class="filter-btn" onclick="filtrar('gasto', this)">🛒 Gastos</button>
+                </div>
+
+                <div id="movements-list">
+                    ${renderMovimientos(movimientos)}
+                </div>
+            </div>
+        `;
+
+        // Guardar los movimientos para el filtro
+        window._movimientos = movimientos;
+    }
+
+    function renderMovimientos(movimientos, filtro = 'todos') {
+        const filtered = filtro === 'todos'
+            ? movimientos
+            : movimientos.filter(m => {
+                if (filtro === 'ingreso') return m.tipo === 'ingreso' || m.tipo === 'premio';
+                if (filtro === 'gasto') return m.tipo === 'gasto' || m.tipo === 'canje' || m.tipo === 'canjeo';
+                return true;
+            });
+
+        if (filtered.length === 0) {
+            return `
+                <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+                    <div style="font-size: 2rem; margin-bottom: 10px;">🔍</div>
+                    <p style="margin: 0;">No hay movimientos de este tipo</p>
+                </div>
+            `;
+        }
+
+        return filtered.map(m => {
+            const esIngreso = m.tipo === 'ingreso' || m.tipo === 'premio';
+            const iconClass = esIngreso ? 'ingreso' : 'gasto';
+            const icon = esIngreso ? '💰' : '🛒';
+            const montoClass = esIngreso ? 'positivo' : 'negativo';
+            const montoPrefix = esIngreso ? '+' : '-';
+            const fechaFormateada = formatearFecha(m.fecha);
+
+            return `
+                <div class="movement" data-tipo="${m.tipo}">
+                    <div class="mov-icon ${iconClass}">${icon}</div>
+                    <div class="mov-info">
+                        <div class="mov-concepto">${escapeHTML(m.concepto)}</div>
+                        <div class="mov-fecha">${fechaFormateada}</div>
+                    </div>
+                    <div class="mov-monto ${montoClass}">${montoPrefix}${m.monto.toFixed(2)}€</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function filtrar(tipo, btn) {
+        // Actualizar botón activo
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Re-renderizar
+        const list = document.getElementById('movements-list');
+        list.innerHTML = renderMovimientos(window._movimientos, tipo);
+    }
+
+    function formatearFecha(fechaStr) {
+        try {
+            const date = new Date(fechaStr);
+            if (isNaN(date.getTime())) return fechaStr;
+            return date.toLocaleDateString('es-ES', {
+                day: 'numeric', month: 'short', year: 'numeric'
+            });
+        } catch {
+            return fechaStr;
+        }
+    }
+
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // =========================================
+    //  ESTADOS: SETUP / ERROR / NO ENCONTRADO
+    // =========================================
+    function mostrarSetup() {
+        document.getElementById('wallet-content').innerHTML = `
+            <div class="setup-card">
+                <h2>⚙️ Configuración Inicial</h2>
+                <p style="color: var(--text-muted); text-align: center; font-size: 0.85rem; margin-bottom: 25px;">
+                    Configura el Google Apps Script para activar el wallet de forma privada.
+                </p>
+
+                <div class="step">
+                    <div class="step-number">Paso 1</div>
+                    <p>En tu Google Sheet, ve a <strong style="color: white;">Extensiones → Apps Script</strong> y pega el código del script (ver guía).</p>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">Paso 2</div>
+                    <p>En Apps Script: <strong style="color: white;">Implementar → Nueva implementación → App web</strong>. Acceso: <code>Cualquier persona</code>.</p>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">Paso 3</div>
+                    <p>Copia la <strong style="color: white;">URL</strong> que te da y pégala en <code>wallet.html</code>:<br>
+                    <code>const SCRIPT_URL = '<span style="color: #34d399;">https://script.google.com/macros/s/...</span>';</code></p>
+                </div>
+
+                <div class="step" style="border-color: var(--accent);">
+                    <div class="step-number" style="color: var(--accent);">¡Listo!</div>
+                    <p>Los links de tus jugadores serán:<br>
+                    <code>tu-web.github.io/wallet.html?jugador=<span style="color: #34d399;">id_del_jugador</span></code></p>
+                </div>
+            </div>
+        `;
+    }
+
+    function mostrarErrorNoJugador() {
+        document.getElementById('wallet-content').innerHTML = `
+            <div class="state-message">
+                <div class="state-icon">🔗</div>
+                <h2>Link incompleto</h2>
+                <p>Este link no tiene un jugador asignado.<br>
+                El formato correcto es:<br><br>
+                <code style="background: rgba(0,0,0,0.5); padding: 8px 15px; border-radius: 8px; color: #fbbf24; font-size: 0.8rem;">
+                    wallet.html?jugador=tu_id
+                </code></p>
+            </div>
+        `;
+    }
+
+    function mostrarJugadorNoEncontrado() {
+        document.getElementById('wallet-content').innerHTML = `
+            <div class="state-message">
+                <div class="state-icon">🤔</div>
+                <h2>Jugador no encontrado</h2>
+                <p>No se encontraron movimientos para <strong style="color: white;">"${escapeHTML(jugadorId)}"</strong>.<br>
+                Verifica que el ID sea correcto o contacta con la tienda.</p>
+            </div>
+        `;
+    }
+
+    function mostrarError(mensaje) {
+        document.getElementById('wallet-content').innerHTML = `
+            <div class="state-message">
+                <div class="state-icon">⚠️</div>
+                <h2>Error de conexión</h2>
+                <p>${escapeHTML(mensaje)}<br><br>
+                Verifica que la hoja esté publicada correctamente.<br>
+                Si el problema persiste, contacta con la tienda.</p>
+            </div>
+        `;
+    }
+
+    // Toast (reutilizado de tu estilo)
+    function mostrarToast(mensaje) {
+        const contenedor = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerHTML = `<span>🐼</span> <span>${mensaje}</span>`;
+        contenedor.appendChild(toast);
+        setTimeout(() => {
+            toast.style.transform = 'translateX(100%)';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+    </script>
+
+</body>
+</html>
