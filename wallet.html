@@ -249,53 +249,20 @@
 
     <script>
     // =========================================
-    //  CONFIGURACIÓN — CAMBIA ESTO POR TU ID
+    //  CONFIGURACIÓN
     // =========================================
-    // 
-    // INSTRUCCIONES:
-    // 1. Crea un Google Sheet con estas columnas (exactas):
-    //    A: jugador_id  |  B: nombre  |  C: fecha  |  D: concepto  |  E: tipo  |  F: monto
     //
-    //    Ejemplo de filas:
-    //    carlos_mtg | Carlos López | 2026-09-15 | Premio Jornada 3 - 1er puesto | ingreso | 10
-    //    carlos_mtg | Carlos López | 2026-09-22 | Canjeo: 2 sobres MH3          | gasto   | 3
-    //
-    // 2. En Google Sheets: Archivo → Compartir → Publicar en la web → Publicar
-    // 3. Copia el ID de la URL de tu sheet (la parte larga entre /d/ y /edit)
-    // 4. Pégalo aquí abajo:
-
-    const SHEET_ID = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1kVIOYZOQIi3gKOqJvq6C7fz0ZCwBUTYtLJ7HBFOimJBj7Cfc0W2rqPMfB2kNe_7gb2ufgOcReeeU/pubhtml?gid=0&single=true'; // ← PEGA AQUÍ TU ID O URL
+    // Pega aquí la URL de tu Google Apps Script (ver guía de setup):
+    const SCRIPT_URL = '';
 
     // =========================================
     //  LÓGICA PRINCIPAL
     // =========================================
-
-    // Detectar qué tipo de ID/URL pegó el usuario
-    function detectarSheet(input) {
-        if (!input) return null;
-
-        // Caso 1: URL de publicación → /d/e/2PACX-xxxxx/pub...
-        const matchPub = input.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9_-]+)/);
-        if (matchPub) return { tipo: 'pub', id: matchPub[1] };
-
-        // Caso 2: URL normal de edición → /d/1aBcDeF.../edit
-        const matchEdit = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-        if (matchEdit) return { tipo: 'edit', id: matchEdit[1] };
-
-        // Caso 3: Solo pegó un ID suelto
-        const clean = input.trim();
-        if (clean.startsWith('2PACX-')) return { tipo: 'pub', id: clean };
-        if (clean.length > 10) return { tipo: 'edit', id: clean };
-
-        return null;
-    }
-
-    const sheetInfo = detectarSheet(SHEET_ID);
     const params = new URLSearchParams(window.location.search);
     const jugadorId = params.get('jugador') || params.get('j');
 
     document.addEventListener('DOMContentLoaded', () => {
-        if (!sheetInfo) {
+        if (!SCRIPT_URL) {
             mostrarSetup();
             return;
         }
@@ -310,96 +277,26 @@
 
     async function cargarDatos() {
         try {
-            let csvText = '';
-            let ok = false;
+            const url = `${SCRIPT_URL}?jugador=${encodeURIComponent(jugadorId)}`;
+            const response = await fetch(url);
 
-            if (sheetInfo.tipo === 'pub') {
-                // URL de publicación: usar endpoint /pub?output=csv
-                const url = `https://docs.google.com/spreadsheets/d/e/${sheetInfo.id}/pub?output=csv`;
-                const r = await fetch(url);
-                if (r.ok) { csvText = await r.text(); ok = true; }
-            } else {
-                // ID normal: usar endpoint /gviz/tq
-                const url = `https://docs.google.com/spreadsheets/d/${sheetInfo.id}/gviz/tq?tqx=out:csv`;
-                const r = await fetch(url);
-                if (r.ok) { csvText = await r.text(); ok = true; }
-            }
+            if (!response.ok) throw new Error('No se pudo conectar con el servidor.');
 
-            if (!ok) throw new Error('No se pudo conectar con la hoja de cálculo. Verifica que esté publicada.');
+            const data = await response.json();
 
-            const movimientos = parseCSV(csvText);
+            if (data.error) throw new Error(data.error);
 
-            // Filtrar por jugador
-            const misMovimientos = movimientos.filter(m =>
-                m.jugador_id.toLowerCase() === jugadorId.toLowerCase()
-            );
-
-            if (misMovimientos.length === 0) {
+            if (!data.movimientos || data.movimientos.length === 0) {
                 mostrarJugadorNoEncontrado();
                 return;
             }
 
-            renderWallet(misMovimientos);
+            renderWallet(data.movimientos);
 
         } catch (error) {
             console.error('Error cargando datos:', error);
             mostrarError(error.message);
         }
-    }
-
-    function parseCSV(text) {
-        const lines = text.trim().split('\n');
-        if (lines.length < 2) return [];
-
-        // Parsear cabeceras (quitar comillas)
-        const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
-
-        const movimientos = [];
-        for (let i = 1; i < lines.length; i++) {
-            const values = parseCSVLine(lines[i]);
-            if (values.length < 6) continue;
-
-            const obj = {};
-            headers.forEach((h, idx) => {
-                obj[h] = values[idx] ? values[idx].trim() : '';
-            });
-
-            movimientos.push({
-                jugador_id: obj['jugador_id'] || obj['id'] || '',
-                nombre: obj['nombre'] || '',
-                fecha: obj['fecha'] || '',
-                concepto: obj['concepto'] || obj['motivo'] || '',
-                tipo: (obj['tipo'] || '').toLowerCase(),
-                monto: parseFloat(obj['monto'] || '0') || 0
-            });
-        }
-
-        return movimientos;
-    }
-
-    function parseCSVLine(line) {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-
-        for (let i = 0; i < line.length; i++) {
-            const ch = line[i];
-            if (ch === '"') {
-                if (inQuotes && line[i + 1] === '"') {
-                    current += '"';
-                    i++;
-                } else {
-                    inQuotes = !inQuotes;
-                }
-            } else if (ch === ',' && !inQuotes) {
-                result.push(current);
-                current = '';
-            } else {
-                current += ch;
-            }
-        }
-        result.push(current);
-        return result.map(v => v.replace(/^"|"$/g, ''));
     }
 
     function renderWallet(movimientos) {
@@ -544,35 +441,23 @@
             <div class="setup-card">
                 <h2>⚙️ Configuración Inicial</h2>
                 <p style="color: var(--text-muted); text-align: center; font-size: 0.85rem; margin-bottom: 25px;">
-                    Conecta tu Google Sheet para activar el wallet. ¡Solo se hace una vez!
+                    Configura el Google Apps Script para activar el wallet de forma privada.
                 </p>
 
                 <div class="step">
                     <div class="step-number">Paso 1</div>
-                    <p>Crea un <strong style="color: white;">Google Sheet</strong> con estas columnas exactas en la fila 1:</p>
-                    <p style="margin-top: 8px;"><code>jugador_id</code> · <code>nombre</code> · <code>fecha</code> · <code>concepto</code> · <code>tipo</code> · <code>monto</code></p>
+                    <p>En tu Google Sheet, ve a <strong style="color: white;">Extensiones → Apps Script</strong> y pega el código del script (ver guía).</p>
                 </div>
 
                 <div class="step">
                     <div class="step-number">Paso 2</div>
-                    <p>Rellena las filas con los movimientos. En <code>tipo</code> pon <code>ingreso</code> o <code>gasto</code>. En <code>monto</code> siempre un número positivo.</p>
+                    <p>En Apps Script: <strong style="color: white;">Implementar → Nueva implementación → App web</strong>. Acceso: <code>Cualquier persona</code>.</p>
                 </div>
 
                 <div class="step">
                     <div class="step-number">Paso 3</div>
-                    <p>Ve a <strong style="color: white;">Archivo → Compartir → Publicar en la web</strong> y dale a <strong style="color: #34d399;">Publicar</strong>.</p>
-                </div>
-
-                <div class="step">
-                    <div class="step-number">Paso 4</div>
-                    <p>Copia el <strong style="color: white;">ID</strong> de tu sheet desde la URL:<br>
-                    <code>https://docs.google.com/spreadsheets/d/<span style="color: #34d399; font-weight: 900;">ESTE_ES_TU_ID</span>/edit</code></p>
-                </div>
-
-                <div class="step">
-                    <div class="step-number">Paso 5</div>
-                    <p>Abre <code>wallet.html</code> y pega el ID en la línea que dice:<br>
-                    <code>const SHEET_ID = '';</code></p>
+                    <p>Copia la <strong style="color: white;">URL</strong> que te da y pégala en <code>wallet.html</code>:<br>
+                    <code>const SCRIPT_URL = '<span style="color: #34d399;">https://script.google.com/macros/s/...</span>';</code></p>
                 </div>
 
                 <div class="step" style="border-color: var(--accent);">
