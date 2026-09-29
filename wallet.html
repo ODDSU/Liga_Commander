@@ -270,25 +270,32 @@
     //  LÓGICA PRINCIPAL
     // =========================================
 
-    // Extraer el ID real aunque el usuario pegue una URL entera
-    function extraerSheetId(input) {
-        if (!input) return '';
-        // Si pegó una URL completa, extraer el ID
-        const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-        if (match) return match[1];
-        // Si pegó un link de publicación /d/e/XXXXX
-        const matchPub = input.match(/\/d\/e\/([a-zA-Z0-9_-]+)/);
-        if (matchPub) return matchPub[1];
-        // Si solo pegó el ID limpio
-        return input.trim();
+    // Detectar qué tipo de ID/URL pegó el usuario
+    function detectarSheet(input) {
+        if (!input) return null;
+
+        // Caso 1: URL de publicación → /d/e/2PACX-xxxxx/pub...
+        const matchPub = input.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9_-]+)/);
+        if (matchPub) return { tipo: 'pub', id: matchPub[1] };
+
+        // Caso 2: URL normal de edición → /d/1aBcDeF.../edit
+        const matchEdit = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+        if (matchEdit) return { tipo: 'edit', id: matchEdit[1] };
+
+        // Caso 3: Solo pegó un ID suelto
+        const clean = input.trim();
+        if (clean.startsWith('2PACX-')) return { tipo: 'pub', id: clean };
+        if (clean.length > 10) return { tipo: 'edit', id: clean };
+
+        return null;
     }
 
-    const sheetId = extraerSheetId(SHEET_ID);
+    const sheetInfo = detectarSheet(SHEET_ID);
     const params = new URLSearchParams(window.location.search);
     const jugadorId = params.get('jugador') || params.get('j');
 
     document.addEventListener('DOMContentLoaded', () => {
-        if (!sheetId) {
+        if (!sheetInfo) {
             mostrarSetup();
             return;
         }
@@ -303,24 +310,19 @@
 
     async function cargarDatos() {
         try {
-            // Intentar primero con el ID normal, si falla intentar como ID de publicación
             let csvText = '';
             let ok = false;
 
-            // Intento 1: ID normal de edición
-            try {
-                const url1 = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
-                const r1 = await fetch(url1);
-                if (r1.ok) { csvText = await r1.text(); ok = true; }
-            } catch(e) { /* ignorar, intentar siguiente */ }
-
-            // Intento 2: ID de publicación (formato /d/e/XXXXX)
-            if (!ok) {
-                try {
-                    const url2 = `https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?output=csv`;
-                    const r2 = await fetch(url2);
-                    if (r2.ok) { csvText = await r2.text(); ok = true; }
-                } catch(e) { /* ignorar */ }
+            if (sheetInfo.tipo === 'pub') {
+                // URL de publicación: usar endpoint /pub?output=csv
+                const url = `https://docs.google.com/spreadsheets/d/e/${sheetInfo.id}/pub?output=csv`;
+                const r = await fetch(url);
+                if (r.ok) { csvText = await r.text(); ok = true; }
+            } else {
+                // ID normal: usar endpoint /gviz/tq
+                const url = `https://docs.google.com/spreadsheets/d/${sheetInfo.id}/gviz/tq?tqx=out:csv`;
+                const r = await fetch(url);
+                if (r.ok) { csvText = await r.text(); ok = true; }
             }
 
             if (!ok) throw new Error('No se pudo conectar con la hoja de cálculo. Verifica que esté publicada.');
@@ -636,3 +638,4 @@
 
 </body>
 </html>
+
